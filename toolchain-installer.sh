@@ -4,7 +4,7 @@ TMPDIR=$(mktemp -d)
 cd $TMPDIR
 
 YOSYS_VERSION=0.23
-NEXTPNR_VERSION=0.1.1
+NEXTPNR_VERSION=0.1.2
 
 function cleanup {
   cd
@@ -55,13 +55,6 @@ else
   echo nextpnr-xilinx already exists, refraining from creating an alias
 fi
 
-if [ ! -x "$(which fasm)" ]
-then
-  sudo snap alias nextpnr-kintex.prjxray-fasm fasm
-else
-  echo fasm already exists, refraining from creating an alias
-fi
-
 if [ ! -x "$(which bbasm)" ]
 then
   sudo snap alias nextpnr-kintex.bbasm bbasm
@@ -71,14 +64,14 @@ fi
 
 if [ ! -x "$(which fasm2frames)" ]
 then
-  sudo snap alias nextpnr-kintex.prjxray-fasm2frames fasm2frames
+  sudo snap alias nextpnr-kintex.fasm2frames fasm2frames
 else
   echo fasm2frames already exists, refraining from creating an alias
 fi
 
 if [ ! -x "$(which xc7frames2bit)" ]
 then
-  sudo snap alias nextpnr-kintex.prjxray-xc7frames2bit xc7frames2bit
+  sudo snap alias nextpnr-kintex.xc7frames2bit xc7frames2bit
 else
   echo xc7frames2bit already exists, refraining from creating an alias
 fi
