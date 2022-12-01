@@ -76,3 +76,9 @@ else
   echo xc7frames2bit already exists, refraining from creating an alias
 fi
 
+if [ ! -x "$(which bit2fasm)" ]
+then
+  sudo snap alias nextpnr-kintex.bit2fasm bit2fasm
+else
+  echo bit2fasm already exists, refraining from creating an alias
+fi
