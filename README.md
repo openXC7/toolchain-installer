@@ -1,6 +1,6 @@
 # nextpnr-kintex toolchain installer
 
-This is an FPGA toolchain using yosys and nextpnr-xilinx for 
+This is an open source FPGA toolchain using yosys and nextpnr-xilinx for 
 Xilinx 7 series FPGAs (Spartan7, Artix7, Zynq7),
 with added support for Kintex7 FPGAs. (70T, 160T, 325T, 420T, 480T).
 
