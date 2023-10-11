@@ -4,7 +4,7 @@ TMPDIR=$(mktemp -d)
 cd $TMPDIR
 
 YOSYS_VERSION=0.17
-NEXTPNR_VERSION=0.5.1
+NEXTPNR_VERSION=0.6.0
 
 function cleanup {
   cd
