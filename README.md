@@ -10,7 +10,7 @@ For other distributions or operating systems like Mac OS X (untested),
 we recommend the nix based toolchain installer, see:
 https://github.com/openXC7/toolchain-nix/
 
-To install the toolchain, copy-paste this instruction into a shell:
+To install the snap based toolchain, copy-paste this instruction into a shell:
 ```
 wget -qO - https://raw.githubusercontent.com/kintex-chatter/toolchain-installer/main/toolchain-installer.sh | bash
 ```
