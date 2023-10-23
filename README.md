@@ -12,10 +12,10 @@ https://github.com/openXC7/toolchain-nix/
 
 To install the snap based toolchain, copy-paste this instruction into a shell:
 ```
-wget -qO - https://raw.githubusercontent.com/kintex-chatter/toolchain-installer/main/toolchain-installer.sh | bash
+wget -qO - https://raw.githubusercontent.com/openXC7/toolchain-installer/main/toolchain-installer.sh | bash
 ```
 
 To uninstall the toolchain, copy-pase this command into a shell:
 ```
-wget -qO - https://raw.githubusercontent.com/kintex-chatter/toolchain-installer/main/uninstall.sh | bash
+wget -qO - https://raw.githubusercontent.com/openXC7/toolchain-installer/main/uninstall.sh | bash
 ```
