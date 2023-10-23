@@ -11,49 +11,52 @@ function cleanup {
   rm -rf $TMPDIR
 }
 
-if [ ! -x "$(which yosys)" ]
+if [ "$1" != "-a" ]
 then
-  wget -c https://github.com/openXC7/yosys-snap/releases/download/v${YOSYS_VERSION}/yosys_${YOSYS_VERSION}_amd64.snap
-  if [ $? -ne 0 ]
+  if [ ! -x "$(which yosys)" ]
   then
-    echo Downloading yosys package failed.
+    wget -c https://github.com/openXC7/yosys-snap/releases/download/v${YOSYS_VERSION}/yosys_${YOSYS_VERSION}_amd64.snap
+    if [ $? -ne 0 ]
+    then
+      echo Downloading yosys package failed.
+      cleanup
+      exit 1
+    fi
+    sudo snap install --classic --dangerous ./yosys_*.snap
+  else
+    echo "Yosys is already installed. Using your current installation"
+  fi
+
+  if [ -d /snap/nextpnr-kintex ]
+  then
+    echo removing old toolchain version
+    snap remove nextpnr-kintex
     cleanup
     exit 1
   fi
-  sudo snap install --classic --dangerous ./yosys_*.snap
-else
-  echo "Yosys is already installed. Using your current installation"
-fi
 
-if [ -d /snap/nextpnr-kintex ]
-then
-  echo removing old toolchain version
-  snap remove nextpnr-kintex
-  cleanup
-  exit 1
-fi
+  if [ -d /snap/openxc7 ]
+  then
+    echo openxc7 is already installed. Please remove it first, before running this script!
+    cleanup
+    exit 1
+  fi
 
-if [ -d /snap/openxc7 ]
-then
-  echo openxc7 is already installed. Please remove it first, before running this script!
-  cleanup
-  exit 1
-fi
+  wget -c https://github.com/openXC7/openXC7-snap/releases/download/v${NEXTPNR_VERSION}/openxc7_${NEXTPNR_VERSION}_amd64.snap
+  if [ $? -ne 0 ]
+  then
+    echo Downloading openxc7 package failed.
+    cleanup
+    exit 1
+  fi
 
-wget -c https://github.com/openXC7/openXC7-snap/releases/download/${NEXTPNR_VERSION}/openxc7_${NEXTPNR_VERSION}_amd64.snap
-if [ $? -ne 0 ]
-then
-  echo Downloading openxc7 package failed.
-  cleanup
-  exit 1
-fi
-
-sudo snap install --classic --dangerous ./openxc7_*.snap
-if [ $? -ne 0 ]
-then
-  echo installing openxc7 package failed.
-  cleanup
-  exit 1
+  sudo snap install --classic --dangerous ./openxc7_*.snap
+  if [ $? -ne 0 ]
+  then
+    echo installing openxc7 package failed.
+    cleanup
+    exit 1
+  fi
 fi
 
 if [ ! -x "$(which nextpnr-xilinx)" ]
