@@ -10,7 +10,7 @@ For other distributions or operating systems like Mac OS X (untested),
 we recommend the nix based toolchain installer, see:
 https://github.com/openXC7/toolchain-nix/
 
-We actually would recommended the nix toolchain, because contrary to the snap toolchain,
+We actually would recommend the nix toolchain, because contrary to the snap toolchain,
 it has the GHDL plugin in yosys. If you use GHDL standalone,
 or don't have VHDL code, you can use the snap toolchain.
 
