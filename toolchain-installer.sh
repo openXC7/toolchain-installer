@@ -42,7 +42,7 @@ then
     exit 1
   fi
 
-  wget -c https://github.com/openXC7/openXC7-snap/releases/download/v${NEXTPNR_VERSION}/openxc7_${NEXTPNR_VERSION}_amd64.snap
+  wget -c https://github.com/openXC7/openXC7-snap/releases/download/${NEXTPNR_VERSION}/openxc7_${NEXTPNR_VERSION}_amd64.snap
   if [ $? -ne 0 ]
   then
     echo Downloading openxc7 package failed.
