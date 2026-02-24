@@ -18,7 +18,7 @@ DEPENDENCIES="$DEPENDENCIES python3-pytest-runner python3-scipy python3-simplejs
 
 # Tools commit hash.
 # Yosys
-YOSYS_HASH=yosys-0.38
+YOSYS_HASH=yosys-0.62
 # nextpnr xilinx (stable-backports 2025-03-10)
 NEXTPNR_XILINX_HASH=3374e5a62b54dc346fd5f85188ed24075ddfd5fb
 NEXTPNR_XILINX_HASH=0.8.2
@@ -169,6 +169,8 @@ if [ ! -d $INSTALL_PREFIX ]; then
 	sudo mkdir -p $INSTALL_PREFIX
 	sudo chown -R $UID:$GROUPS $INSTALL_PREFIX
 fi
+
+[ -d $INSTALL_PREFIX/lib/python ] || mkdir -p $INSTALL_PREFIX/lib/python
 
 # check if everything must be build or only one step.
 build_yosys="false"
