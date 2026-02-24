@@ -18,7 +18,7 @@ DEPENDENCIES="$DEPENDENCIES python3-pytest-runner python3-scipy python3-simplejs
 
 # Tools commit hash.
 # Yosys
-YOSYS_HASH=yosys-0.38
+YOSYS_HASH=yosys-0.62
 # nextpnr xilinx (stable-backports 2025-03-10)
 NEXTPNR_XILINX_HASH=3374e5a62b54dc346fd5f85188ed24075ddfd5fb
 NEXTPNR_XILINX_HASH=0.8.2
