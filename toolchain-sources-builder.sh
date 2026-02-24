@@ -170,6 +170,8 @@ if [ ! -d $INSTALL_PREFIX ]; then
 	sudo chown -R $UID:$GROUPS $INSTALL_PREFIX
 fi
 
+[ -d $INSTALL_PREFIX/lib/python ] || mkdir -p $INSTALL_PREFIX/lib/python
+
 # check if everything must be build or only one step.
 build_yosys="false"
 build_prjxray="false"
