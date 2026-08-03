@@ -18,7 +18,7 @@ DEPENDENCIES="$DEPENDENCIES python3-pytest-runner python3-scipy python3-simplejs
 
 # Tools commit hash.
 # Yosys
-YOSYS_HASH=yosys-v0.62
+YOSYS_HASH=v0.62
 
 NEXTPNR_XILINX_HASH=0.9.2
 PRJXRAY_HASH=0.9.2
