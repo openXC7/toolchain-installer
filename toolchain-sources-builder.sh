@@ -20,7 +20,7 @@ DEPENDENCIES="$DEPENDENCIES python3-pytest-runner python3-scipy python3-simplejs
 # Yosys
 YOSYS_HASH=v0.68
 
-NEXTPNR_XILINX_HASH=4dd779f52f8d05b158c5f7432b91ac05797645be
+NEXTPNR_XILINX_HASH=0.9.3
 PRJXRAY_HASH=0.9.2
 PRJXRAY_DB_HASH=0.9.1
 
@@ -123,7 +123,7 @@ build_fasm() {
 build_nextpnr() {
 	# apt install libboost-iostreams-dev libboost-thread-dev libboost-program-options-dev
 	# apt install libboost-python-dev libeigen3-dev
-	if [[ $# > 1 ]]; then
+	if [[ $# -gt 1 ]]; then
 		echo "Error: too many args"
 		return
 	fi
@@ -184,7 +184,7 @@ else
 		build_prjxray="true"
 		build_nextpnr="true"
 	else
-		for tgt in $@; do
+		for tgt in "$@"; do
 			if [[ $tgt == "yosys" ]]; then
 				build_yosys="true"
 			fi
