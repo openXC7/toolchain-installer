@@ -20,7 +20,7 @@ DEPENDENCIES="$DEPENDENCIES python3-pytest-runner python3-scipy python3-simplejs
 # Yosys
 YOSYS_HASH=v0.68
 
-NEXTPNR_XILINX_HASH=4440fd59
+NEXTPNR_XILINX_HASH=c618d711
 PRJXRAY_HASH=0.9.2
 PRJXRAY_DB_HASH=0.9.1
 
@@ -60,29 +60,34 @@ git_clone_update() {
 		git pull
 	else
 		case "$repo" in
-			nextpnr-xilinx)
-		 		repo_url="https://github.com/openXC7/nextpnr-xilinx.git";;
-			yosys)
-				repo_url="https://github.com/YosysHQ/yosys.git";;
-			prjxray)
-				repo_url="https://github.com/openXC7/prjxray.git";;
-			prjxray-db)
-				repo_url="https://github.com/openXC7/prjxray-db.git";;
-			*)
-				echo "Error: unknown repo $repo"
-				return;;
+		nextpnr-xilinx)
+			repo_url="https://github.com/openXC7/nextpnr-xilinx.git"
+			;;
+		yosys)
+			repo_url="https://github.com/YosysHQ/yosys.git"
+			;;
+		prjxray)
+			repo_url="https://github.com/openXC7/prjxray.git"
+			;;
+		prjxray-db)
+			repo_url="https://github.com/openXC7/prjxray-db.git"
+			;;
+		*)
+			echo "Error: unknown repo $repo"
+			return
+			;;
 		esac
 
 		git clone $repo_url $repo
-   		pushd $repo
+		pushd $repo
 	fi
 
 	# Force specified hash.
 	if [[ $repo_hash != "" ]]; then
 		git checkout $repo_hash
 	fi
-   	git submodule update --init --recursive
-   	popd
+	git submodule update --init --recursive
+	popd
 }
 
 clean_repo() {
@@ -139,7 +144,7 @@ build_nextpnr() {
 	cp ../xilinx/constids.inc $INSTALL_PREFIX/lib/
 	cp ../xilinx/constids.inc ../xilinx/python/* $INSTALL_PREFIX/lib/python/
 	cp -r ../xilinx/external $INSTALL_PREFIX/lib/external
-	popd 
+	popd
 }
 
 build_prjxray() {
@@ -228,7 +233,7 @@ if [[ $build_nextpnr == "true" ]]; then
 fi
 
 if [ ! -d $INSTALL_PREFIX/export.sh ]; then
-	cat << EOF > $INSTALL_PREFIX/export.sh
+	cat <<EOF >$INSTALL_PREFIX/export.sh
 export PYTHONPATH=$INSTALL_PREFIX/lib/python
 export PATH=$INSTALL_PREFIX/bin:\$PATH
 export NEXTPNR_XILINX_PYTHON_DIR=$INSTALL_PREFIX/lib/python
