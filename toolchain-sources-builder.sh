@@ -24,12 +24,12 @@ BREW_DEPENDENCIES=(cmake git python openjdk pypy3 boost boost-python3 eigen
 
 # Tools commit hash.
 # Yosys
-YOSYS_HASH=v0.68
+YOSYS_HASH=v0.69
 
-NEXTPNR_XILINX_HASH=a9ceeec2
+NEXTPNR_XILINX_HASH=3fd78784
 # Pin the recent source previously fetched from master. Tag 0.9.2 predates
 # the HP-bank glue and tile-alias fixes needed by the current database.
-PRJXRAY_HASH=9346969e7bfb9d070221957f8ccbaec28d5f1a93
+PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
 # Match NEXTPNR_XILINX_HASH's xilinx/external/prjxray-db submodule
 PRJXRAY_DB_HASH=1768fb35d68468eac2f4319ff66d0c27863267b6
 
