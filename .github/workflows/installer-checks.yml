@@ -1,0 +1,25 @@
+name: Installer checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Shell syntax and installer regressions
+        run: |
+          bash -n toolchain-sources-builder.sh tests/smoke-toolchain.sh
+          BASH_BIN=/bin/bash python3 -m unittest discover -s tests -v
+      - name: ShellCheck
+        if: runner.os == 'Linux'
+        run: shellcheck toolchain-sources-builder.sh tests/smoke-toolchain.sh
