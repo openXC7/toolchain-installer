@@ -397,7 +397,9 @@ build_prjxray() (
 	if [[ ${#editable[@]} == 0 ]]; then
 		requirements=requirements.txt
 	else
-		grep -vE '^[[:space:]]*(-e|--editable)[[:space:]]' requirements.txt > "$requirements"
+		# sed rather than grep -v: an empty result must not fail under set -e,
+		# which it does when every requirement is editable.
+		sed -E '/^[[:space:]]*(-e|--editable)[[:space:]]/d' requirements.txt > "$requirements"
 	fi
 
 	# FASM defaults to its static ANTLR runtime. Install it once, in the venv.

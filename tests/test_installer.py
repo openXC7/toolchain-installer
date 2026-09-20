@@ -266,6 +266,26 @@ class InstallerTests(unittest.TestCase):
         ''')
         self.assert_ok(result)
 
+    def test_prjxray_requirements_with_only_editable_entries(self):
+        """An empty non-editable list must not abort the install under set -e."""
+        result = self.shell(r'''
+            mkdir -p "$INSTALL_PREFIX" prjxray/third_party/fasm prjxray/third_party/python-sdf-timing
+            printf '%s\n' \
+                '-e third_party/fasm' '-e third_party/python-sdf-timing' '-e .' \
+                > prjxray/requirements.txt
+            patch_fasm_antlr_build() { :; }
+            patch_prjxray_setup() { :; }
+            cmake() { :; }
+            fasm2frames() { :; }
+            python3() { echo "$*" >> "$INSTALL_PREFIX/python3-calls"; }
+            build_prjxray prjxray
+            # The local packages are still installed, and the temporary
+            # requirements file is removed again.
+            grep -q -- '-m pip install third_party/fasm third_party/python-sdf-timing \.' "$INSTALL_PREFIX/python3-calls"
+            [[ ! -e prjxray/requirements-installer.txt ]]
+        ''')
+        self.assert_ok(result)
+
     def test_prjxray_install_removes_stale_editable_finders(self):
         result = self.shell(r'''
             sp="$INSTALL_PREFIX/venv/lib/python3.9/site-packages"
