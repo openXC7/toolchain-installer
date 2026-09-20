@@ -318,9 +318,8 @@ patch_prjxray_setup() {
 }
 
 # These are installer-managed source trees. Submodules stay checked out, so
-# reruns do not download them again, but lose their build products: FASM's
-# editable install keeps its parser library in the source tree, and a stale
-# copy would pass build_prjxray()'s parser check after a failed rebuild.
+# reruns do not download them again, but their build products are removed so
+# that a rerun builds from a clean tree instead of reusing stale objects.
 clean_repo() (
 	cd "$1"
 	rm -rf build
@@ -376,12 +375,59 @@ build_prjxray() (
 	# Earlier installers put a separate FASM in lib/python, which a PYTHONPATH
 	# left over from their export.sh would load ahead of the venv's.
 	rm -rf "$INSTALL_PREFIX/lib/python/fasm" "$INSTALL_PREFIX"/lib/python/fasm-*
+	# An earlier run may have installed the local packages below in editable
+	# mode. pip cannot always remove those, because their .pth and finder files
+	# point outside the venv, and a leftover finder would take precedence over
+	# what is installed here.
+	rm -f "$INSTALL_PREFIX"/venv/lib/python*/site-packages/__editable__*{fasm,prjxray,sdf_timing}* \
+		"$INSTALL_PREFIX"/venv/lib/python*/site-packages/__pycache__/__editable__*{fasm,prjxray,sdf_timing}*
+
+	# requirements.txt installs the three local packages - FASM, python-sdf-timing
+	# and prjxray itself - in editable mode, which would leave the venv importing
+	# from this build directory. Such an installation would only work where that
+	# directory is visible, which rules out sharing it between users or machines.
+	# Install them as ordinary packages instead: FASM's own build puts the ANTLR
+	# parser library and the generated extension into the package directory, so
+	# the prefix references nothing outside itself.
+	local requirements=requirements-installer.txt
+	local editable=() entry
+	while IFS= read -r entry; do
+		editable+=("$entry")
+	done < <(sed -nE 's/^[[:space:]]*(-e|--editable)[[:space:]]+(.*)$/\2/p' requirements.txt)
+	if [[ ${#editable[@]} == 0 ]]; then
+		requirements=requirements.txt
+	else
+		# sed rather than grep -v: an empty result must not fail under set -e,
+		# which it does when every requirement is editable.
+		sed -E '/^[[:space:]]*(-e|--editable)[[:space:]]/d' requirements.txt > "$requirements"
+	fi
+
 	# FASM defaults to its static ANTLR runtime. Install it once, in the venv.
 	# FASM's bundled googletest uses uintptr_t without including <cstdint>, which
 	# GCC 15's standard library no longer provides transitively.
-	CXXFLAGS="${CXXFLAGS:+$CXXFLAGS }-include cstdint" python3 -m pip install -r requirements.txt
+	CXXFLAGS="${CXXFLAGS:+$CXXFLAGS }-include cstdint" python3 -m pip install -r "$requirements"
+	if [[ ${#editable[@]} != 0 ]]; then
+		CXXFLAGS="${CXXFLAGS:+$CXXFLAGS }-include cstdint" python3 -m pip install "${editable[@]}"
+		rm -f "$requirements"
+	fi
+
 	# FASM's build can report success after silently falling back to textX.
 	python3 -c 'import fasm.parser; assert fasm.parser.implementation == "antlr", "FASM ANTLR parser failed to build"; assert list(fasm.parser.parse_fasm_string("TEST.FEATURE"))[0].set_feature.feature == "TEST.FEATURE"'
+	# The packages must not be installed editable: that would leave the venv
+	# importing from this build directory, so an installation copied or shared
+	# to another user or machine would only work where it is readable.
+	python3 - <<-'PYEOF'
+		import importlib.metadata as metadata
+		import json
+		import pathlib
+
+		editable = []
+		for name in ("fasm", "prjxray", "sdf_timing"):
+		    direct_url = pathlib.Path(metadata.distribution(name)._path) / "direct_url.json"
+		    if direct_url.exists() and json.loads(direct_url.read_text()).get("dir_info", {}).get("editable"):
+		        editable.append(name)
+		assert not editable, "installed editable: %s" % editable
+	PYEOF
 	fasm2frames --help >/dev/null
 )
 

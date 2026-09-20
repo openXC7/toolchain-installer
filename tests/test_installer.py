@@ -225,6 +225,91 @@ class InstallerTests(unittest.TestCase):
         self.assertFalse((prefix / "export.sh").exists())
         self.assertEqual(len((prefix / "cmake-calls").read_text().splitlines()), 1)
 
+    def test_prjxray_packages_are_installed_without_the_build_directory(self):
+        """The prefix must not import from the build directory or from $HOME.
+
+        Editable installs leave the virtual environment pointing at the prjxray
+        checkout, so an installation shared between users or machines only works
+        where that checkout is readable; see openXC7/toolchain-installer#10.
+        """
+        result = self.shell(r'''
+            mkdir -p "$INSTALL_PREFIX" prjxray/third_party/fasm prjxray/third_party/python-sdf-timing
+            printf '%s\n' intervaltree numpy '' '# Third party' \
+                '-e third_party/fasm' '-e third_party/python-sdf-timing' '-e .' \
+                > prjxray/requirements.txt
+            patch_fasm_antlr_build() { :; }
+            patch_prjxray_setup() { :; }
+            cmake() { :; }
+            fasm2frames() { :; }
+            python3() {
+                echo "$*" >> "$INSTALL_PREFIX/python3-calls"
+                for arg in "$@"; do
+                    if [[ "$arg" == requirements-installer.txt ]]; then
+                        cp "$arg" "$INSTALL_PREFIX/plain-requirements"
+                    fi
+                done
+            }
+            build_prjxray prjxray
+            calls="$INSTALL_PREFIX/python3-calls"
+            # The local packages are installed as ordinary directories, not as
+            # editable ones, and never into a per-user location.
+            grep -q -- '-m pip install third_party/fasm third_party/python-sdf-timing \.' "$calls"
+            ! grep -q -- '-e ' "$calls"
+            ! grep -q -- '--user' "$calls"
+            ! grep -q -- '--target' "$calls"
+            # The requirements file handed to pip no longer lists editable paths,
+            # while upstream's still does.
+            grep -q intervaltree "$INSTALL_PREFIX/plain-requirements"
+            ! grep -qE '^[[:space:]]*-e[[:space:]]' "$INSTALL_PREFIX/plain-requirements"
+            grep -qE '^[[:space:]]*-e[[:space:]]' prjxray/requirements.txt
+            [[ ! -e prjxray/requirements-installer.txt ]]
+        ''')
+        self.assert_ok(result)
+
+    def test_prjxray_requirements_with_only_editable_entries(self):
+        """An empty non-editable list must not abort the install under set -e."""
+        result = self.shell(r'''
+            mkdir -p "$INSTALL_PREFIX" prjxray/third_party/fasm prjxray/third_party/python-sdf-timing
+            printf '%s\n' \
+                '-e third_party/fasm' '-e third_party/python-sdf-timing' '-e .' \
+                > prjxray/requirements.txt
+            patch_fasm_antlr_build() { :; }
+            patch_prjxray_setup() { :; }
+            cmake() { :; }
+            fasm2frames() { :; }
+            python3() { echo "$*" >> "$INSTALL_PREFIX/python3-calls"; }
+            build_prjxray prjxray
+            # The local packages are still installed, and the temporary
+            # requirements file is removed again.
+            grep -q -- '-m pip install third_party/fasm third_party/python-sdf-timing \.' "$INSTALL_PREFIX/python3-calls"
+            [[ ! -e prjxray/requirements-installer.txt ]]
+        ''')
+        self.assert_ok(result)
+
+    def test_prjxray_install_removes_stale_editable_finders(self):
+        result = self.shell(r'''
+            sp="$INSTALL_PREFIX/venv/lib/python3.9/site-packages"
+            mkdir -p prjxray "$sp/__pycache__"
+            printf '%s\n' intervaltree > prjxray/requirements.txt
+            touch "$sp/__editable__.prjxray-0.0.1.pth" \
+                "$sp/__editable___prjxray_0_0_1_finder.py" \
+                "$sp/__editable___fasm_0_0_2_post66_finder.py" \
+                "$sp/__pycache__/__editable___prjxray_0_0_1_finder.cpython-39.pyc" \
+                "$sp/unrelated.pth"
+            patch_fasm_antlr_build() { :; }
+            patch_prjxray_setup() { :; }
+            cmake() { :; }
+            python3() { :; }
+            fasm2frames() { :; }
+            build_prjxray prjxray
+            [[ ! -e "$sp/__editable__.prjxray-0.0.1.pth" ]]
+            [[ ! -e "$sp/__editable___prjxray_0_0_1_finder.py" ]]
+            [[ ! -e "$sp/__editable___fasm_0_0_2_post66_finder.py" ]]
+            [[ ! -e "$sp/__pycache__/__editable___prjxray_0_0_1_finder.cpython-39.pyc" ]]
+            [[ -e "$sp/unrelated.pth" ]]
+        ''')
+        self.assert_ok(result)
+
 
 if __name__ == '__main__':
     unittest.main()

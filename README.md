@@ -38,8 +38,8 @@ and [Homebrew](https://brew.sh/) first. Run the script as your normal user;
 it uses `sudo` when system packages or the installation directory require it.
 
 Use a dedicated build directory. The script resets and cleans its downloaded
-source repositories on subsequent runs. Keep these repositories after installation:
-Project X-Ray's Python packages are installed in editable mode.
+source repositories on subsequent runs, so the build directory is only needed
+while the builder runs: the installation itself is self-contained.
 
 ### Objectives
 
@@ -90,6 +90,31 @@ without manually modifying/adding:
 - `PATH`
 - `NEXTPNR_XILINX_PYTHON_DIR`
 - `PRJXRAY_DB_DIR`
+
+### Shared installations
+
+The Python packages are installed in a virtual environment inside
+`INSTALL_PREFIX` rather than in the system or user Python, so an installation
+does not depend on the `HOME` of the user who ran the builder and can live on a
+filesystem shared by several users and machines, for example over NFS. Two
+things have to hold for that:
+
+- everyone who uses the installation must be able to read it, which a
+  restrictive umask breaks:
+
+  ```bash
+  chmod -R a+rX /srv/openxc7
+  ```
+
+- every client must mount the prefix at the same path and provide the same
+  `python3` minor version, because `venv/bin/*` carry absolute shebangs and
+  `pyvenv.cfg` records the interpreter used at installation time. `pypy3`, which
+  `bbaexport.py` needs, is not part of the prefix and has to be installed on
+  every client.
+
+An environment exported by an older version of this script may leave a
+`PYTHONPATH` pointing at the prefix's `lib/python`; that would take precedence
+over the virtual environment, so source the current `export.sh` instead.
 
 ### Installer checks
 
