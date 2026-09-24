@@ -31,7 +31,7 @@ NEXTPNR_XILINX_HASH=0eae9fbb
 # the HP-bank glue and tile-alias fixes needed by the current database.
 PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
 # Match NEXTPNR_XILINX_HASH's xilinx/external/prjxray-db submodule
-PRJXRAY_DB_HASH=1768fb35d68468eac2f4319ff66d0c27863267b6
+PRJXRAY_DB_HASH=a90f27c1caefee5276f47440f4c730b50519a86f
 
 # Portable "number of cpus" helper (macOS has no nproc by default).
 get_nproc() {
