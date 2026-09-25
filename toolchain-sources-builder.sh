@@ -30,11 +30,16 @@ YOSYS_HASH=v0.69
 # replaces nextpnr-xilinx, which is archived -- 0.9.8 was that line's last
 # release and the toolchain now builds this instead.
 #
-# 5a0b7e41 is main's merge of the GTP common segment and ISERDESE2-OFB fixes.
-# Without them this engine emits FASM the frame tools reject for GTP designs
-# ("Segment DB GTP_COMMON, key GTP_COMMON.GTXE2_COMMON.IBUFDS_GTE2.CLKSWING_CFG
-# not found") and refuses an ISERDESE2 fed by the OSERDESE2 OFB feedback.
-NEXTPNR_HASH=5a0b7e4167ba150b0e087bfdfc3797e2df096a45
+# 93b4a527 is main's merge of the bel-bucket naming change: a primitive whose
+# prjxray bel type repeats its own name (RAMB18E1_RAMB18E1, or the already
+# compound IDELAYE2_FINEDELAY_IDELAYE2_FINEDELAY) buckets as the primitive, so
+# utilisation, reports and the placer log name RAMB18E1 instead of the doubled
+# chipdb type.  It also carries the GTP common segment and ISERDESE2-OFB fixes
+# (5a0b7e41) this pin had before: without them this engine emits FASM the frame
+# tools reject for GTP designs ("Segment DB GTP_COMMON, key
+# GTP_COMMON.GTXE2_COMMON.IBUFDS_GTE2.CLKSWING_CFG not found") and refuses an
+# ISERDESE2 fed by the OSERDESE2 OFB feedback.
+NEXTPNR_HASH=93b4a52731d006e1504fd6a455a5d820820e080f
 # Pin the recent source previously fetched from master. Tag 0.9.2 predates
 # the HP-bank glue and tile-alias fixes needed by the current database.
 PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
