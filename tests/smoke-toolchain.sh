@@ -29,9 +29,14 @@ XDC
 
 python3 -c 'import fasm.parser; assert fasm.parser.implementation == "antlr"'
 yosys -Q -p 'synth_xilinx -flatten -abc9 -arch xc7 -top blinky; write_json blinky.json' blinky.v
-pypy3 "$NEXTPNR_XILINX_PYTHON_DIR/bbaexport.py" --device xc7a35tcsg324-1 --bba chipdb.bba
-bbasm -l chipdb.bba chipdb.bin
-nextpnr-xilinx --chipdb chipdb.bin --xdc blinky.xdc --json blinky.json --fasm blinky.fasm --freq 100
+# The engine generates a database per DIE and takes a die name: xc7a35tcsg324
+# is served by the xc7a50t database.  The file is named after the PART because
+# the nextpnr-xilinx shim derives --device from the chipdb filename, the same
+# convention openXC7.mk uses.
+python3 "$NEXTPNR_XILINX_DIR/share/nextpnr/himbaechel/uarch/xilinx/gen/xilinx_gen.py" \
+    --xray "$PRJXRAY_DB_DIR/artix7" --device xc7a50t --bba chipdb.bba
+bbasm -l chipdb.bba xc7a35tcsg324.bin
+nextpnr-xilinx --chipdb xc7a35tcsg324.bin --xdc blinky.xdc --json blinky.json --fasm blinky.fasm --freq 100
 fasm2frames --part xc7a35tcsg324-1 --db-root "$PRJXRAY_DB_DIR/artix7" blinky.fasm > blinky.frames
 xc7frames2bit --part_file "$PRJXRAY_DB_DIR/artix7/xc7a35tcsg324-1/part.yaml" \
     --part_name xc7a35tcsg324-1 --frm_file blinky.frames --output_file blinky.bit

@@ -1,6 +1,6 @@
 # openXC7 toolchain installer
 
-This is an open source FPGA toolchain using yosys and nextpnr-xilinx for
+This is an open source FPGA toolchain using yosys and openXC7/nextpnr for
 Xilinx 7 series FPGAs (Spartan7, Artix7, Zynq7),
 with added support for Kintex7 FPGAs (70T, 160T, 325T, 420T, 480T).
 
@@ -44,7 +44,7 @@ while the builder runs: the installation itself is self-contained.
 ### Objectives
 
 The script handles the following tasks:
-- cloning, updating and checking out `yosys`/`nextpnr-xilinx`/`prjxray`/`prjxray-db` repositories
+- cloning, updating and checking out `yosys`/`nextpnr`/`prjxray`/`prjxray-db` repositories
 - building each specified tool
 - installing the resulting binaries into `/opt/openxc7`
 
@@ -88,6 +88,7 @@ For a custom `INSTALL_PREFIX`, source `export.sh` from that directory instead.
 This allows you to use the installed tools in your current shell session
 without manually modifying/adding:
 - `PATH`
+- `NEXTPNR_XILINX_DIR`
 - `NEXTPNR_XILINX_PYTHON_DIR`
 - `PRJXRAY_DB_DIR`
 
@@ -108,9 +109,7 @@ things have to hold for that:
 
 - every client must mount the prefix at the same path and provide the same
   `python3` minor version, because `venv/bin/*` carry absolute shebangs and
-  `pyvenv.cfg` records the interpreter used at installation time. `pypy3`, which
-  `bbaexport.py` needs, is not part of the prefix and has to be installed on
-  every client.
+  `pyvenv.cfg` records the interpreter used at installation time.
 
 An environment exported by an older version of this script may leave a
 `PYTHONPATH` pointing at the prefix's `lib/python`; that would take precedence

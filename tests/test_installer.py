@@ -78,6 +78,7 @@ class InstallerTests(unittest.TestCase):
                     source "$INSTALL_PREFIX/export.sh"
                     [[ "$PYTHONPATH" == /user/python ]]
                     [[ "$PATH" == "$INSTALL_PREFIX/venv/bin:$INSTALL_PREFIX/bin:"* ]]
+                    [[ "$NEXTPNR_XILINX_DIR" == "$INSTALL_PREFIX" ]]
                     [[ "$NEXTPNR_XILINX_PYTHON_DIR" == "$INSTALL_PREFIX/lib/python" ]]
                     [[ "$PRJXRAY_DB_DIR" == "$INSTALL_PREFIX/share/nextpnr/prjxray-db" ]]
                 ''' % os_name)
@@ -121,21 +122,22 @@ class InstallerTests(unittest.TestCase):
             git -C database add .
             git -C database -c user.name=Test -c user.email=test@example.invalid commit -qm database
             PRJXRAY_DB_HASH=$(git -C database rev-parse HEAD)
-            mkdir -p nextpnr/build nextpnr/xilinx/python nextpnr/xilinx/external
-            git clone -q database nextpnr/xilinx/external/prjxray-db
-            git init -q nextpnr
-            git -C nextpnr update-index --add --cacheinfo "160000,$PRJXRAY_DB_HASH,xilinx/external/prjxray-db"
-            git -C nextpnr -c user.name=Test -c user.email=test@example.invalid commit -qm database
-            touch nextpnr/build/bbasm nextpnr/xilinx/constids.inc nextpnr/xilinx/python/bbaexport.py
-            mkdir -p "$INSTALL_PREFIX/bin" "$INSTALL_PREFIX/lib/python"
+            mkdir -p nextpnr/build/bba nextpnr/himbaechel/uarch/xilinx/gen \
+                     nextpnr/himbaechel/uarch/xilinx/meta nextpnr/himbaechel/himbaechel_dbgen \
+                     nextpnr/.github/scripts
+            printf '#!/bin/sh\n' > nextpnr/.github/scripts/nextpnr-xilinx-shim.sh
+            touch nextpnr/build/bba/bbasm nextpnr/himbaechel/uarch/xilinx/constids.inc
+            touch nextpnr/himbaechel/uarch/xilinx/gen/xilinx_gen.py
+            mkdir -p "$INSTALL_PREFIX/bin" "$INSTALL_PREFIX/lib"
             cmake() { :; }
-            build_nextpnr nextpnr
-            build_nextpnr nextpnr
-            [[ ! -e "$INSTALL_PREFIX/lib/external/external" ]]
-            cmp database/segbits.db "$INSTALL_PREFIX/lib/external/prjxray-db/segbits.db"
+            build_nextpnr nextpnr "$PWD/database"
+            build_nextpnr nextpnr "$PWD/database"
             cmp database/segbits.db "$INSTALL_PREFIX/share/nextpnr/prjxray-db/segbits.db"
-            PRJXRAY_DB_HASH=wrong
-            if build_nextpnr nextpnr; then exit 1; fi
+            [[ ! -e "$INSTALL_PREFIX/share/nextpnr/prjxray-db/.git" ]]
+            [[ -x "$INSTALL_PREFIX/bin/nextpnr-xilinx" ]]
+            [[ -e "$INSTALL_PREFIX/share/nextpnr/himbaechel/uarch/xilinx/gen/xilinx_gen.py" ]]
+            [[ -e "$INSTALL_PREFIX/share/nextpnr/himbaechel/himbaechel_dbgen" ]]
+            [[ -e "$INSTALL_PREFIX/lib/constids.inc" ]]
         ''')
         self.assert_ok(result)
 
@@ -174,7 +176,7 @@ class InstallerTests(unittest.TestCase):
         result = self.shell(r'''
             lib="$INSTALL_PREFIX/lib/python"
             mkdir -p prjxray "$lib/fasm/parser" "$lib/fasm-0.0.2.post66-py3.14.egg-info"
-            touch "$lib/bbaexport.py" "$lib/constids.inc"
+            touch "$lib/constids.inc"
             patch_fasm_antlr_build() { :; }
             patch_prjxray_setup() { :; }
             cmake() { :; }
@@ -182,7 +184,7 @@ class InstallerTests(unittest.TestCase):
             fasm2frames() { :; }
             build_prjxray prjxray
             [[ ! -e "$lib/fasm" && ! -e "$lib/fasm-0.0.2.post66-py3.14.egg-info" ]]
-            [[ -e "$lib/bbaexport.py" && -e "$lib/constids.inc" ]]
+            [[ -e "$lib/constids.inc" ]]
         ''')
         self.assert_ok(result)
 

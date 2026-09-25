@@ -26,11 +26,16 @@ BREW_DEPENDENCIES=(cmake git python openjdk pypy3 boost boost-python3 eigen
 # Yosys
 YOSYS_HASH=v0.69
 
-NEXTPNR_XILINX_HASH=cbabb651
+# The engine: openXC7/nextpnr, the himbaechel xilinx micro-architecture.  It
+# replaces nextpnr-xilinx, which is archived -- 0.9.8 was that line's last
+# release and the toolchain now builds this instead.
+NEXTPNR_HASH=e860c9c8360d8501a1b55df94e58f3dfe7bde958
 # Pin the recent source previously fetched from master. Tag 0.9.2 predates
 # the HP-bank glue and tile-alias fixes needed by the current database.
 PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
-# Match NEXTPNR_XILINX_HASH's xilinx/external/prjxray-db submodule
+# The database the engine is configured against and installs.  Keep it equal to
+# the engine's own PRJXRAY_DB_REV so the chip databases and the frame tools
+# agree; the engine still has to configure against a checkout of it.
 PRJXRAY_DB_HASH=a90f27c1caefee5276f47440f4c730b50519a86f
 
 # Portable "number of cpus" helper (macOS has no nproc by default).
@@ -286,7 +291,7 @@ git_clone_update() (
 	local repo=$1 repo_hash=$2 repo_url
 	case "$repo" in
 		yosys) repo_url=https://github.com/YosysHQ/yosys.git ;;
-		nextpnr-xilinx|prjxray|prjxray-db) repo_url="https://github.com/openXC7/$repo.git" ;;
+		nextpnr|prjxray|prjxray-db) repo_url="https://github.com/openXC7/$repo.git" ;;
 		*) echo "Error: unknown repo $repo" >&2; return 1 ;;
 	esac
 	if [[ ! -d "$repo" ]]; then
@@ -336,12 +341,15 @@ build_yosys() (
 )
 
 build_nextpnr() (
-	cd "$1"
-	if [[ $(git rev-parse HEAD:xilinx/external/prjxray-db) != "$PRJXRAY_DB_HASH" ]]; then
-		echo "Error: PRJXRAY_DB_HASH must match nextpnr's database submodule." >&2
-		return 1
-	fi
-	local nextpnr_cmake_opts=("${CMAKE_OPTS[@]}" -DARCH=xilinx -DUSE_OPENMP=ON -DBUILD_GUI=OFF)
+	local repo_dir=$1 db_dir=$2
+	cd "$repo_dir"
+	local nextpnr_cmake_opts=("${CMAKE_OPTS[@]}" -DARCH=himbaechel -DHIMBAECHEL_UARCH=xilinx
+		-DUSE_OPENMP=ON -DBUILD_GUI=OFF -DBUILD_PYTHON=OFF
+		-DHIMBAECHEL_PRJXRAY_DB="$db_dir"
+		# Every device in this list gets a chip database target, and the binary
+		# depends on it: the default list (all fifteen) would turn a binary
+		# build into fifteen concurrent generator runs.
+		-DHIMBAECHEL_XILINX_DEVICES=)
 	if [[ "$OS" == Darwin ]]; then
 		local llvm_prefix libomp_prefix
 		llvm_prefix=$(brew --prefix llvm)
@@ -354,14 +362,25 @@ build_nextpnr() (
 	cmake -S . -B build "${nextpnr_cmake_opts[@]}"
 	cmake --build build --parallel "$(get_nproc)"
 	cmake --install build
-	cp build/bbasm "$INSTALL_PREFIX/bin/"
-	cp xilinx/constids.inc "$INSTALL_PREFIX/lib/"
-	cp xilinx/constids.inc xilinx/python/*.py "$INSTALL_PREFIX/lib/python/"
-	# Copy contents, so a second install does not create external/external.
-	mkdir -p "$INSTALL_PREFIX/lib/external"
-	tar -C xilinx/external --exclude=.git -cf - . | tar -xf - -C "$INSTALL_PREFIX/lib/external"
+	# bbasm is built under bba/, not at the build root.
+	cp build/bba/bbasm "$INSTALL_PREFIX/bin/"
+	# The command the openXC7 makefiles call.  The engine's own binary is
+	# nextpnr-himbaechel and speaks --device/-o, not --chipdb/--xdc/--fasm, so
+	# install the shim its CI ships under the name those makefiles use.
+	install -m755 .github/scripts/nextpnr-xilinx-shim.sh "$INSTALL_PREFIX/bin/nextpnr-xilinx"
+	# The chip database generator and everything its imports reach; openXC7.mk's
+	# lazy chipdb rule runs these out of NEXTPNR_XILINX_DIR.  xilinx_gen.py
+	# appends gen/../../.. to sys.path and imports himbaechel_dbgen, and it
+	# derives its default --metadata/--constids paths from its own location.
+	local share="$INSTALL_PREFIX/share/nextpnr/himbaechel"
+	mkdir -p "$share/uarch/xilinx"
+	cp -r himbaechel/uarch/xilinx/gen "$share/uarch/xilinx/"
+	cp -r himbaechel/uarch/xilinx/meta "$share/uarch/xilinx/"
+	cp himbaechel/uarch/xilinx/constids.inc "$share/uarch/xilinx/"
+	cp -r himbaechel/himbaechel_dbgen "$share/"
+	cp himbaechel/uarch/xilinx/constids.inc "$INSTALL_PREFIX/lib/"
 	# Keep frame conversion in sync even when only nextpnr is rebuilt.
-	build_prjxray_db xilinx/external/prjxray-db
+	build_prjxray_db "$db_dir"
 )
 
 build_prjxray() (
@@ -444,6 +463,7 @@ write_environment() {
 	cat >"$INSTALL_PREFIX/export.sh" <<EOF
 # Python packages and console scripts live in the toolchain virtual environment.
 export PATH="$INSTALL_PREFIX/venv/bin:$INSTALL_PREFIX/bin:$pypy3_prefix\$PATH"
+export NEXTPNR_XILINX_DIR="$INSTALL_PREFIX"
 export NEXTPNR_XILINX_PYTHON_DIR="$INSTALL_PREFIX/lib/python"
 export PRJXRAY_DB_DIR="$INSTALL_PREFIX/share/nextpnr/prjxray-db"
 EOF
@@ -504,9 +524,12 @@ main() {
 		build_prjxray_db prjxray-db
 	fi
 	if [[ "$build_nextpnr" == true ]]; then
-		git_clone_update nextpnr-xilinx "$NEXTPNR_XILINX_HASH"
-		clean_repo nextpnr-xilinx
-		build_nextpnr nextpnr-xilinx
+		# The engine is configured against the database and installs it, so the
+		# checkout is needed whether or not prjxray is built in this run.
+		git_clone_update prjxray-db "$PRJXRAY_DB_HASH"
+		git_clone_update nextpnr "$NEXTPNR_HASH"
+		clean_repo nextpnr
+		build_nextpnr nextpnr "$PWD/prjxray-db"
 	fi
 	write_environment
 }
