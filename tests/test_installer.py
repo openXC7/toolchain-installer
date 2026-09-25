@@ -125,6 +125,13 @@ class InstallerTests(unittest.TestCase):
             mkdir -p nextpnr/build/bba nextpnr/himbaechel/uarch/xilinx/gen \
                      nextpnr/himbaechel/uarch/xilinx/meta nextpnr/himbaechel/himbaechel_dbgen \
                      nextpnr/.github/scripts
+            cat > nextpnr/himbaechel/uarch/xilinx/fasm.cc <<'EOF'
+                if (mem_disagrees)
+                    log_error("FASM: LUT-RAM '%s' (type %s) at bel %s disagrees with its half-slice on "
+                              "'IS_WCLK_INVERTED' (tile %s) -- control-set contention in the placement\n",
+                              lut->name.c_str(ctx), lut->type.c_str(ctx), ctx->getBelName(lut->bel).str(ctx),
+                              tname.c_str());
+            EOF
             printf '#!/bin/sh\n' > nextpnr/.github/scripts/nextpnr-xilinx-shim.sh
             touch nextpnr/build/bba/bbasm nextpnr/himbaechel/uarch/xilinx/constids.inc
             touch nextpnr/himbaechel/uarch/xilinx/gen/xilinx_gen.py
@@ -132,12 +139,32 @@ class InstallerTests(unittest.TestCase):
             cmake() { :; }
             build_nextpnr nextpnr "$PWD/database"
             build_nextpnr nextpnr "$PWD/database"
+            grep -Fq 'lut->type.c_str(ctx), bel_name.c_str(),' nextpnr/himbaechel/uarch/xilinx/fasm.cc
             cmp database/segbits.db "$INSTALL_PREFIX/share/nextpnr/prjxray-db/segbits.db"
             [[ ! -e "$INSTALL_PREFIX/share/nextpnr/prjxray-db/.git" ]]
             [[ -x "$INSTALL_PREFIX/bin/nextpnr-xilinx" ]]
             [[ -e "$INSTALL_PREFIX/share/nextpnr/himbaechel/uarch/xilinx/gen/xilinx_gen.py" ]]
             [[ -e "$INSTALL_PREFIX/share/nextpnr/himbaechel/himbaechel_dbgen" ]]
             [[ -e "$INSTALL_PREFIX/lib/constids.inc" ]]
+        ''')
+        self.assert_ok(result)
+
+    def test_nextpnr_fasm_format_patch_is_idempotent(self):
+        result = self.shell(r'''
+            mkdir -p nextpnr/himbaechel/uarch/xilinx
+            cat > nextpnr/himbaechel/uarch/xilinx/fasm.cc <<'EOF'
+                if (mem_disagrees)
+                    log_error("FASM: LUT-RAM '%s' (type %s) at bel %s disagrees with its half-slice on "
+                              "'IS_WCLK_INVERTED' (tile %s) -- control-set contention in the placement\n",
+                              lut->name.c_str(ctx), lut->type.c_str(ctx), ctx->getBelName(lut->bel).str(ctx),
+                              tname.c_str());
+            EOF
+            patch_nextpnr_fasm_varargs
+            patch_nextpnr_fasm_varargs
+            rg='const std::string bel_name = ctx->getBelName(lut->bel).str(ctx);'
+            [[ $(grep -Fc "$rg" nextpnr/himbaechel/uarch/xilinx/fasm.cc) == 1 ]]
+            grep -Fq 'lut->type.c_str(ctx), bel_name.c_str(),' nextpnr/himbaechel/uarch/xilinx/fasm.cc
+            [[ $(grep -Fc 'ctx->getBelName(lut->bel).str(ctx),' nextpnr/himbaechel/uarch/xilinx/fasm.cc) == 0 ]]
         ''')
         self.assert_ok(result)
 

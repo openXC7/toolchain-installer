@@ -357,6 +357,39 @@ clean_repo() (
 	git submodule foreach --recursive git clean -ffdx
 )
 
+# Apple Clang diagnoses passing std::string through log_error's C-style %s
+# varargs, while GCC accepts it (with undefined behavior).  Keep the pinned
+# upstream source buildable until openXC7/nextpnr carries this fix.
+# Idempotent and guarded so a changed upstream implementation fails clearly.
+patch_nextpnr_fasm_varargs() {
+	local source="himbaechel/uarch/xilinx/fasm.cc"
+	if grep -q 'const std::string bel_name = ctx->getBelName(lut->bel).str(ctx);' "$source" && \
+	   grep -q 'lut->type.c_str(ctx), bel_name.c_str(),' "$source"; then
+		return 0
+	fi
+	python3 - "$source" <<-'PYEOF'
+		import sys
+		path = sys.argv[1]
+		with open(path) as f:
+		    content = f.read()
+		old = """                if (mem_disagrees)
+		            log_error("FASM: LUT-RAM '%s' (type %s) at bel %s disagrees with its half-slice on "
+		                      "'IS_WCLK_INVERTED' (tile %s) -- control-set contention in the placement\\n",
+		                      lut->name.c_str(ctx), lut->type.c_str(ctx), ctx->getBelName(lut->bel).str(ctx),
+		                      tname.c_str());"""
+		new = """                if (mem_disagrees) {
+		            const std::string bel_name = ctx->getBelName(lut->bel).str(ctx);
+		            log_error("FASM: LUT-RAM '%s' (type %s) at bel %s disagrees with its half-slice on "
+		                      "'IS_WCLK_INVERTED' (tile %s) -- control-set contention in the placement\\n",
+		                      lut->name.c_str(ctx), lut->type.c_str(ctx), bel_name.c_str(),
+		                      tname.c_str());
+		        }"""
+		assert content.count(old) == 1, "nextpnr FASM varargs call changed (upstream fix may be available)"
+		with open(path, "w") as f:
+		    f.write(content.replace(old, new, 1))
+	PYEOF
+}
+
 build_yosys() (
 	cd "$1"
 	cmake -S . -B build -DCMAKE_BUILD_TYPE=Release "${CMAKE_OPTS[@]}"
@@ -367,6 +400,7 @@ build_yosys() (
 build_nextpnr() (
 	local repo_dir=$1 db_dir=$2
 	cd "$repo_dir"
+	patch_nextpnr_fasm_varargs
 	local nextpnr_cmake_opts=("${CMAKE_OPTS[@]}" -DARCH=himbaechel -DHIMBAECHEL_UARCH=xilinx
 		-DUSE_OPENMP=ON -DBUILD_GUI=OFF -DBUILD_PYTHON=OFF
 		-DHIMBAECHEL_PRJXRAY_DB="$db_dir"
