@@ -313,5 +313,83 @@ class InstallerTests(unittest.TestCase):
         self.assert_ok(result)
 
 
+    def test_bazel_download_is_verified_and_idempotent(self):
+        """The pinned binary is checked against the published digest, once."""
+        result = self.shell(r'''
+            OS=Linux
+            uname() { echo x86_64; }
+            curl() {
+                while [[ $# > 0 ]]; do
+                    if [[ "$1" == -o ]]; then
+                        shift
+                        printf '#!/bin/sh\necho "bazel %s"\n' "$BAZEL_VERSION" > "$1"
+                        printf '%s\n' "${BAZEL_VERSION}" >> downloads
+                        return 0
+                    fi
+                    shift
+                done
+                return 1
+            }
+            # The digest install_bazel() expects for Linux/x86_64.
+            sha256sum() { echo "18255229d933b8da10151bdef223a302744296b09af8af1988c93faa1ea3c71f  file"; }
+            install_bazel
+            [[ -x "$INSTALL_PREFIX/bin/bazel" ]]
+            [[ $("$INSTALL_PREFIX/bin/bazel" --version) == 'bazel 8.5.0' ]]
+            [[ $(wc -l < downloads) == 1 ]]
+            # A rerun with the same pin must not download again.
+            install_bazel
+            [[ $(wc -l < downloads) == 1 ]]
+            # A different pin replaces the installed version instead of reusing it.
+            BAZEL_VERSION=9.9.9
+            install_bazel
+            [[ $(wc -l < downloads) == 2 ]]
+            [[ $("$INSTALL_PREFIX/bin/bazel" --version) == 'bazel 9.9.9' ]]
+        ''')
+        self.assert_ok(result)
+
+    def test_bazel_checksum_mismatch_installs_nothing(self):
+        result = self.shell(r'''
+            OS=Linux
+            uname() { echo x86_64; }
+            curl() {
+                while [[ $# > 0 ]]; do
+                    if [[ "$1" == -o ]]; then shift; printf 'tampered\n' > "$1"; return 0; fi
+                    shift
+                done
+                return 1
+            }
+            sha256sum() { echo "0000  file"; }
+            install_bazel
+        ''')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("checksum mismatch", result.stdout + result.stderr)
+        self.assertFalse((self.root / "install with spaces" / "bin" / "bazel").exists())
+
+    def test_fpga_as_is_built_with_the_prefix_bazel(self):
+        """build_fpga_as() must call the Bazel it installed into the prefix."""
+        result = self.shell(r'''
+            mkdir -p fpga-assembler
+            # The script invokes Bazel by absolute path, so the stand-in has to
+            # be a program at that path rather than a shell function.
+            install_bazel() {
+                mkdir -p "$INSTALL_PREFIX/bin"
+                cat > "$INSTALL_PREFIX/bin/bazel" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> bazel-args
+mkdir -p bazel-bin/fpga
+printf '#!/bin/sh\necho fpga-as\n' > bazel-bin/fpga/fpga-as
+MOCK
+                chmod 755 "$INSTALL_PREFIX/bin/bazel"
+            }
+            install() { printf '%s\n' "$*" >> installs; cp "${@: -2:1}" "${@: -1}"; chmod 755 "${@: -1}"; }
+            build_fpga_as fpga-assembler
+            grep -q -- '//fpga:fpga-as' fpga-assembler/bazel-args
+            grep -q -- '-c opt' fpga-assembler/bazel-args
+            grep -q -- '-m755 -s' fpga-assembler/installs
+            [[ -x "$INSTALL_PREFIX/bin/fpga-as" ]]
+        ''')
+        self.assert_ok(result)
+
+
 if __name__ == '__main__':
     unittest.main()

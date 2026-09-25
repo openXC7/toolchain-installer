@@ -44,7 +44,7 @@ while the builder runs: the installation itself is self-contained.
 ### Objectives
 
 The script handles the following tasks:
-- cloning, updating and checking out `yosys`/`nextpnr`/`prjxray`/`prjxray-db` repositories
+- cloning, updating and checking out `yosys`/`nextpnr`/`prjxray`/`prjxray-db`/`fpga-assembler` repositories
 - building each specified tool
 - installing the resulting binaries into `/opt/openxc7`
 
@@ -52,8 +52,8 @@ The script handles the following tasks:
 
 The script can be executed with or without arguments:
 - with no arguments or `all`: downloads, builds and installs **all** supported tools
-- with specific tool names (`yosys` and/or `nextpnr` and/or `prjxray`) only the
-  specified tools will be downloaded, built, and installed
+- with specific tool names (`yosys` and/or `prjxray` and/or `nextpnr` and/or
+  `fpga-as`) only the specified tools will be downloaded, built, and installed
 
 ```bash
 ./toolchain-sources-builder.sh all
@@ -73,6 +73,15 @@ the builder installs a newer CMake in that environment as well.
 The Project X-Ray database pin must match the database submodule of the pinned
 nextpnr revision. Updating just one can produce missing-feature errors during
 `fasm2frames` conversion.
+
+Bitstreams are assembled by `fpga-as`, which replaces the `fasm2frames` +
+`xc7frames2bit` pair the makefiles used to call: it emits the same frames in one
+process and is 9x to 120x faster on the demo designs.  It is built with Bazel,
+which the distributions do not package, so the builder downloads the pinned
+Bazel release binary for the host and verifies it against the checksum published
+next to that release before using it.  Everything else the build needs -- a C++
+toolchain and the JDK that FASM already requires -- comes from the dependencies
+above.
 
 ### Environment setup
 

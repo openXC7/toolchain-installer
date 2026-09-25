@@ -42,6 +42,32 @@ xc7frames2bit --part_file "$PRJXRAY_DB_DIR/artix7/xc7a35tcsg324-1/part.yaml" \
     --part_name xc7a35tcsg324-1 --frm_file blinky.frames --output_file blinky.bit
 [[ -s blinky.bit ]]
 
+# fpga-as assembles the same configuration in one process and is what the
+# makefiles call.  Compare frames rather than .bit files: their headers carry
+# the design name and a build timestamp.
+fpga-as --prjxray_db_path="$PRJXRAY_DB_DIR/artix7" --part xc7a35tcsg324-1 blinky.fasm > blinky-as.bit
+[[ -s blinky-as.bit ]]
+fpga-as --dump_frames_file=blinky-as.frames --prjxray_db_path="$PRJXRAY_DB_DIR/artix7" \
+    --part xc7a35tcsg324-1 blinky.fasm > /dev/null
+python3 - <<'PY'
+def parse(path):
+    frames = {}
+    for line in open(path):
+        fields = line.replace(',', ' ').split()
+        if fields:
+            frames[int(fields[0], 16)] = [int(word, 16) for word in fields[1:]]
+    return frames
+
+
+reference = parse('blinky.frames')
+assembled = parse('blinky-as.frames')
+assert set(assembled) <= set(reference), 'fpga-as set frames fasm2frames did not'
+assert all(reference[a] == w for a, w in assembled.items()), 'frame content differs'
+assert all(not any(reference[a]) for a in set(reference) - set(assembled)), \
+    'fpga-as dropped a frame that carries data'
+print('fpga-as frames match fasm2frames')
+PY
+
 # Regression for the missing HP-bank/column features and edge-tile mapping
 # reported by the Kintex-7 DDR/HDMI demo with the old 0.9.1 database.
 cat > kintex.fasm <<'FASM'
@@ -52,4 +78,4 @@ RIOI_X95Y9.OLOGIC_Y0.ZINV_T1
 FASM
 fasm2frames --part xc7k325tffg676-1 --db-root "$PRJXRAY_DB_DIR/kintex7" kintex.fasm > kintex.frames
 [[ -s kintex.frames ]]
-echo 'PASS: synthesis, chip database generation, place/route, FASM and bitstream generation'
+echo 'PASS: synthesis, chip database generation, place/route, FASM, fpga-as parity and bitstream generation'

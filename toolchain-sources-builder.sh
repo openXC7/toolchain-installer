@@ -13,7 +13,7 @@ INSTALL_PREFIX=${INSTALL_PREFIX:-/opt/openxc7}
 
 # Python packages are installed into the toolchain venv, not the system Python.
 # Do not use the distro ANTLR runtime: FASM needs its vendored version.
-APT_DEPENDENCIES=(build-essential git ca-certificates cmake pkg-config bison flex gawk
+APT_DEPENDENCIES=(build-essential git ca-certificates curl cmake pkg-config bison flex gawk
     python3 python3-dev python3-venv default-jre-headless uuid-dev
     libboost-filesystem-dev libboost-iostreams-dev libboost-thread-dev
     libboost-program-options-dev libboost-python-dev libeigen3-dev
@@ -29,7 +29,12 @@ YOSYS_HASH=v0.69
 # The engine: openXC7/nextpnr, the himbaechel xilinx micro-architecture.  It
 # replaces nextpnr-xilinx, which is archived -- 0.9.8 was that line's last
 # release and the toolchain now builds this instead.
-NEXTPNR_HASH=e860c9c8360d8501a1b55df94e58f3dfe7bde958
+#
+# 5a0b7e41 is main's merge of the GTP common segment and ISERDESE2-OFB fixes.
+# Without them this engine emits FASM the frame tools reject for GTP designs
+# ("Segment DB GTP_COMMON, key GTP_COMMON.GTXE2_COMMON.IBUFDS_GTE2.CLKSWING_CFG
+# not found") and refuses an ISERDESE2 fed by the OSERDESE2 OFB feedback.
+NEXTPNR_HASH=5a0b7e4167ba150b0e087bfdfc3797e2df096a45
 # Pin the recent source previously fetched from master. Tag 0.9.2 predates
 # the HP-bank glue and tile-alias fixes needed by the current database.
 PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
@@ -37,6 +42,19 @@ PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
 # the engine's own PRJXRAY_DB_REV so the chip databases and the frame tools
 # agree; the engine still has to configure against a checkout of it.
 PRJXRAY_DB_HASH=a90f27c1caefee5276f47440f4c730b50519a86f
+
+# The engine's bitstream assembler, which the makefiles now call instead of the
+# fasm2frames + xc7frames2bit pair: same frames, one process, 9x to 120x faster
+# on the demo designs.  It is built with Bazel, which the distributions do not
+# package, so install_bazel() fetches the pinned upstream binary and verifies it
+# against the checksum published next to the release.
+#
+# BAZEL_VERSION matches what the nix toolchain builds fpga-as with (its flake
+# pins nixpkgs' bazel_8, 8.5.0).  fpga-assembler's MODULE.bazel pins every direct
+# dependency to an exact version and the Bazel Central Registry keeps published
+# versions immutable, so unlike the flake this does not need a registry snapshot.
+FPGA_ASSEMBLER_HASH=cf0e3f08455d502fc6392889c07f482ab8dd2d62
+BAZEL_VERSION=8.5.0
 
 # Portable "number of cpus" helper (macOS has no nproc by default).
 get_nproc() {
@@ -292,6 +310,7 @@ git_clone_update() (
 	case "$repo" in
 		yosys) repo_url=https://github.com/YosysHQ/yosys.git ;;
 		nextpnr|prjxray|prjxray-db) repo_url="https://github.com/openXC7/$repo.git" ;;
+		fpga-assembler) repo_url=https://github.com/hansfbaier/fpga-assembler.git ;;
 		*) echo "Error: unknown repo $repo" >&2; return 1 ;;
 	esac
 	if [[ ! -d "$repo" ]]; then
@@ -455,6 +474,59 @@ build_prjxray_db() {
 	git -C "$1" archive "$PRJXRAY_DB_HASH" | tar -xf - -C "$INSTALL_PREFIX/share/nextpnr/prjxray-db"
 }
 
+# Bazel is not packaged by the distributions, so fetch the pinned upstream
+# release binary for this host and check it against the checksum published
+# alongside that release.  It goes into the prefix like every other tool, which
+# also puts it on PATH through export.sh.
+install_bazel() {
+	local platform sha256 url target actual
+	case "$OS/$(uname -m)" in
+		Linux/x86_64) platform=linux-x86_64 sha256=18255229d933b8da10151bdef223a302744296b09af8af1988c93faa1ea3c71f ;;
+		Linux/aarch64) platform=linux-arm64 sha256=0c455abf42814ac53539ddd8147249a11b9e05c7dc83dbd6c8dfac1aec243d85 ;;
+		Darwin/x86_64) platform=darwin-x86_64 sha256=84e1b822b6d076151a9a5b7a962e8230f565a17207196056bfe35303077b8147 ;;
+		Darwin/arm64) platform=darwin-arm64 sha256=a89f446641ab1cce603691cb7030865d1fb014e260ee5710615516e3cacd2414 ;;
+		*)
+			echo "Error: no pinned Bazel $BAZEL_VERSION for $OS/$(uname -m)." >&2
+			return 1
+			;;
+	esac
+	mkdir -p "$INSTALL_PREFIX/bin"
+	target="$INSTALL_PREFIX/bin/bazel"
+	# Skip the download when the pinned version is already there; a previous
+	# run with another BAZEL_VERSION is replaced rather than reused.
+	if [[ -x "$target" ]] && [[ "$("$target" --version 2>/dev/null)" == "bazel $BAZEL_VERSION" ]]; then
+		return 0
+	fi
+	url="https://github.com/bazelbuild/bazel/releases/download/$BAZEL_VERSION/bazel-$BAZEL_VERSION-$platform"
+	echo "Installing Bazel $BAZEL_VERSION ($platform)"
+	curl -fsSL -o "$target.tmp" "$url"
+	# shasum on macOS: brew does not install coreutils unless asked.
+	if command -v sha256sum >/dev/null 2>&1; then
+		actual=$(sha256sum "$target.tmp" | cut -d' ' -f1)
+	else
+		actual=$(shasum -a 256 "$target.tmp" | cut -d' ' -f1)
+	fi
+	if [[ "$actual" != "$sha256" ]]; then
+		rm -f "$target.tmp"
+		echo "Error: Bazel $BAZEL_VERSION checksum mismatch: expected $sha256, got $actual." >&2
+		return 1
+	fi
+	mv "$target.tmp" "$target"
+	chmod 755 "$target"
+}
+
+# fpga-as replaces the fasm2frames + xc7frames2bit pair in the makefiles.  Its
+# build needs a compiler, the JDK FASM already needs, and Bazel, which fetches
+# the modules MODULE.bazel pins; --jobs keeps it inside the requested
+# parallelism the way CMAKE_BUILD_PARALLEL_LEVEL does for the other tools.
+build_fpga_as() (
+	local repo_dir=$1
+	cd "$repo_dir"
+	install_bazel
+	"$INSTALL_PREFIX/bin/bazel" build //fpga:fpga-as -c opt --curses=no --jobs="$(get_nproc)"
+	install -m755 -s bazel-bin/fpga/fpga-as "$INSTALL_PREFIX/bin/fpga-as"
+)
+
 write_environment() {
 	local pypy3_prefix=""
 	if [[ "$OS" == Darwin ]]; then
@@ -470,17 +542,18 @@ EOF
 }
 
 main() {
-	local build_yosys=false build_prjxray=false build_nextpnr=false tgt
+	local build_yosys=false build_prjxray=false build_nextpnr=false build_fpga_as=false tgt
 	if [[ $# == 0 ]]; then
 		set -- all
 	fi
 	for tgt in "$@"; do
 		case "$tgt" in
-			all) build_yosys=true; build_prjxray=true; build_nextpnr=true ;;
+			all) build_yosys=true; build_prjxray=true; build_nextpnr=true; build_fpga_as=true ;;
 			yosys) build_yosys=true ;;
 			prjxray) build_prjxray=true ;;
 			nextpnr) build_nextpnr=true ;;
-			*) echo "Usage: $0 [all | yosys prjxray nextpnr]" >&2; return 1 ;;
+			fpga-as) build_fpga_as=true ;;
+			*) echo "Usage: $0 [all | yosys prjxray nextpnr fpga-as]" >&2; return 1 ;;
 		esac
 	done
 	if [[ "$INSTALL_PREFIX" != /* ]]; then
@@ -530,6 +603,11 @@ main() {
 		git_clone_update nextpnr "$NEXTPNR_HASH"
 		clean_repo nextpnr
 		build_nextpnr nextpnr "$PWD/prjxray-db"
+	fi
+	if [[ "$build_fpga_as" == true ]]; then
+		git_clone_update fpga-assembler "$FPGA_ASSEMBLER_HASH"
+		clean_repo fpga-assembler
+		build_fpga_as fpga-assembler
 	fi
 	write_environment
 }
