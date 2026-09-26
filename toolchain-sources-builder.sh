@@ -46,7 +46,7 @@ PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
 # The database the engine is configured against and installs.  Keep it equal to
 # the engine's own PRJXRAY_DB_REV so the chip databases and the frame tools
 # agree; the engine still has to configure against a checkout of it.
-PRJXRAY_DB_HASH=a90f27c1caefee5276f47440f4c730b50519a86f
+PRJXRAY_DB_HASH=517d66a383676cb971177ea92b0ff3b6ea6e8690
 
 # The engine's bitstream assembler, which the makefiles now call instead of the
 # fasm2frames + xc7frames2bit pair: same frames, one process, 9x to 120x faster
