@@ -39,7 +39,15 @@ YOSYS_HASH=v0.69
 # tools reject for GTP designs ("Segment DB GTP_COMMON, key
 # GTP_COMMON.GTXE2_COMMON.IBUFDS_GTE2.CLKSWING_CFG not found") and refuses an
 # ISERDESE2 fed by the OSERDESE2 OFB feedback.
-NEXTPNR_HASH=93b4a52731d006e1504fd6a455a5d820820e080f
+#
+# c68c1358 is main as of the four merges after it: a BSCANE2 is bound to the
+# site its JTAG_CHAIN selects (#29), an IDDR whose D comes from an IDELAYE2
+# captures the delayed path (#58), an ISERDESE2 that captures its partner
+# OSERDESE2's OFB has that capture programmed and is kept off the _SING I/O
+# tiles whose feedback pips the database lacks (#62 -- the OFB shape above was
+# accepted but never worked in hardware), and -o preplaced / -o prerouted /
+# -o holdbufs replay a reference build's placement and routing (#30).
+NEXTPNR_HASH=c68c13582e972292c86a5025140d52e713384cbc
 # Pin the recent source previously fetched from master. Tag 0.9.2 predates
 # the HP-bank glue and tile-alias fixes needed by the current database.
 PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
