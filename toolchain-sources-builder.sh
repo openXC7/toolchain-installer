@@ -30,24 +30,32 @@ YOSYS_HASH=v0.69
 # replaces nextpnr-xilinx, which is archived -- 0.9.8 was that line's last
 # release and the toolchain now builds this instead.
 #
-# 93b4a527 is main's merge of the bel-bucket naming change: a primitive whose
-# prjxray bel type repeats its own name (RAMB18E1_RAMB18E1, or the already
-# compound IDELAYE2_FINEDELAY_IDELAYE2_FINEDELAY) buckets as the primitive, so
-# utilisation, reports and the placer log name RAMB18E1 instead of the doubled
-# chipdb type.  It also carries the GTP common segment and ISERDESE2-OFB fixes
-# (5a0b7e41) this pin had before: without them this engine emits FASM the frame
-# tools reject for GTP designs ("Segment DB GTP_COMMON, key
-# GTP_COMMON.GTXE2_COMMON.IBUFDS_GTE2.CLKSWING_CFG not found") and refuses an
-# ISERDESE2 fed by the OSERDESE2 OFB feedback.
+# 3e5c2cdd is main as of four port merges on top of c68c1358: an MMCM's
+# CLKFBOUT_MULT_F is range-checked instead of crashing the engine on a bad
+# value (#53), an IDELAYCTRL with no I/ODELAYs is a warning rather than an
+# error (#54), a badly constrained diff pair names the pin at fault and each
+# site is classified by its own tile type (#55), and a BEL/WIRE/PIP attribute
+# naming a tile the database does not know is a named error instead of an
+# abort (#57).
 #
-# c68c1358 is main as of the four merges after it: a BSCANE2 is bound to the
-# site its JTAG_CHAIN selects (#29), an IDDR whose D comes from an IDELAYE2
-# captures the delayed path (#58), an ISERDESE2 that captures its partner
-# OSERDESE2's OFB has that capture programmed and is kept off the _SING I/O
-# tiles whose feedback pips the database lacks (#62 -- the OFB shape above was
-# accepted but never worked in hardware), and -o preplaced / -o prerouted /
-# -o holdbufs replay a reference build's placement and routing (#30).
-NEXTPNR_HASH=c68c13582e972292c86a5025140d52e713384cbc
+# Its history still carries everything the earlier pins were taken for.  The
+# bel-bucket naming change (93b4a527): a primitive whose prjxray bel type
+# repeats its own name (RAMB18E1_RAMB18E1, or the already compound
+# IDELAYE2_FINEDELAY_IDELAYE2_FINEDELAY) buckets as the primitive, so
+# utilisation, reports and the placer log name RAMB18E1 instead of the doubled
+# chipdb type.  The GTP common segment and ISERDESE2-OFB fixes (5a0b7e41):
+# without them this engine emits FASM the frame tools reject for GTP designs
+# ("Segment DB GTP_COMMON, key
+# GTP_COMMON.GTXE2_COMMON.IBUFDS_GTE2.CLKSWING_CFG not found") and refuses an
+# ISERDESE2 fed by the OSERDESE2 OFB feedback.  And c68c1358's four merges: a
+# BSCANE2 bound to the site its JTAG_CHAIN selects (#29), an IDDR whose D
+# comes from an IDELAYE2 capturing the delayed path (#58), an ISERDESE2 that
+# captures its partner OSERDESE2's OFB having that capture programmed and kept
+# off the _SING I/O tiles whose feedback pips the database lacks (#62 -- the
+# OFB shape above was accepted but never worked in hardware), and -o preplaced
+# / -o prerouted / -o holdbufs replaying a reference build's placement and
+# routing (#30).
+NEXTPNR_HASH=3e5c2cdd256745fb5adb93f3ffe8c3795b1e7abf
 # Pin the recent source previously fetched from master. Tag 0.9.2 predates
 # the HP-bank glue and tile-alias fixes needed by the current database.
 PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
