@@ -64,7 +64,17 @@ YOSYS_HASH=v0.69
 NEXTPNR_HASH=26f5e17a5b956cd742a739f23d049e229114fdb8
 # Pin the recent source previously fetched from master. Tag 0.9.2 predates
 # the HP-bank glue and tile-alias fixes needed by the current database.
-PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
+#
+# 54fea88c is the revision the engine's own demo CI uses at the NEXTPNR_HASH
+# above.  It adds openXC7/prjxray#30: fasm2frames no longer injects
+# OBUF_HP_BANK_GLUE on a half whose OLOGIC holds a cell.  The engine does the
+# same since #78.  The engine's CI reports that, without it, two VC707 LiteX
+# SoCs fail to assemble once #72 registers their tristates.  The revisions in
+# between change xc7frames2bit, which now refuses frame addresses the part
+# does not have and exits 1 when it cannot write the bitstream, and the
+# fuzzers.  This pin does not change fpga-as, which still adds the glue on
+# every HP output.
+PRJXRAY_HASH=54fea88cc61b58b76a83d0be7b1194a5ec1d7d2d
 # The database the engine is configured against and installs.  Keep it equal to
 # the engine's own PRJXRAY_DB_REV so the chip databases and the frame tools
 # agree; the engine still has to configure against a checkout of it.
