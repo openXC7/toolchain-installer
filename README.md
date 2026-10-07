@@ -74,6 +74,27 @@ The Project X-Ray database pin must match the database submodule of the pinned
 nextpnr revision. Updating just one can produce missing-feature errors during
 `fasm2frames` conversion.
 
+### Upgrading an installation
+
+Rerun the builder with `all`, or with `prjxray` and `nextpnr` together. The
+pinned `prjxray` revision and the pinned `nextpnr` revision are tested as a
+pair, and the `nextpnr` target does not rebuild the `prjxray` tools. After a
+`nextpnr`-only upgrade, `fasm2frames` is still the old one. It adds
+`OBUF_HP_BANK_GLUE` to an HP output whose OLOGIC holds a cell, which the new
+engine leaves alone, and the assembly can fail. `fpga-as` at its current pin
+also adds that glue on every HP output, whichever targets you rebuild.
+
+The chip databases (`chipdb/*.bin` in a project tree, or the directory in
+`CHIPDB`) are cached. The project makefile builds one only when it is missing,
+and it does not rebuild it when the generator changes. `nextpnr` does not
+detect an old database either: it accepts any database with the current
+format version number, and that number did not change when the generator
+did. A stale database does not change the DSP or LUTRAM bits, which the
+packer and the FASM writer set. It can drop the timing data that a newer
+generator adds. For example, with the BRAM entries of this pin, BRAM paths get
+no timing. After an upgrade, delete the cached `*.bin` files so that the next
+build generates them again.
+
 Bitstreams are assembled by `fpga-as`, which replaces the `fasm2frames` +
 `xc7frames2bit` pair the makefiles used to call: it emits the same frames in one
 process and is 9x to 120x faster on the demo designs.  It is built with Bazel,
