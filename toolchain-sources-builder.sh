@@ -30,32 +30,38 @@ YOSYS_HASH=v0.69
 # replaces nextpnr-xilinx, which is archived -- 0.9.8 was that line's last
 # release and the toolchain now builds this instead.
 #
-# 3e5c2cdd is main as of four port merges on top of c68c1358: an MMCM's
-# CLKFBOUT_MULT_F is range-checked instead of crashing the engine on a bad
-# value (#53), an IDELAYCTRL with no I/ODELAYs is a warning rather than an
-# error (#54), a badly constrained diff pair names the pin at fault and each
-# site is classified by its own tile type (#55), and a BEL/WIRE/PIP attribute
-# naming a tile the database does not know is a named error instead of an
-# abort (#57).
+# 26f5e17a is main as of two fixes for bits that earlier pins wrote wrong
+# without any message, and a set of port merges on top of 3e5c2cdd.
 #
-# Its history still carries everything the earlier pins were taken for.  The
-# bel-bucket naming change (93b4a527): a primitive whose prjxray bel type
-# repeats its own name (RAMB18E1_RAMB18E1, or the already compound
-# IDELAYE2_FINEDELAY_IDELAYE2_FINEDELAY) buckets as the primitive, so
-# utilisation, reports and the placer log name RAMB18E1 instead of the doubled
-# chipdb type.  The GTP common segment and ISERDESE2-OFB fixes (5a0b7e41):
-# without them this engine emits FASM the frame tools reject for GTP designs
-# ("Segment DB GTP_COMMON, key
-# GTP_COMMON.GTXE2_COMMON.IBUFDS_GTE2.CLKSWING_CFG not found") and refuses an
-# ISERDESE2 fed by the OSERDESE2 OFB feedback.  And c68c1358's four merges: a
-# BSCANE2 bound to the site its JTAG_CHAIN selects (#29), an IDDR whose D
-# comes from an IDELAYE2 capturing the delayed path (#58), an ISERDESE2 that
-# captures its partner OSERDESE2's OFB having that capture programmed and kept
-# off the _SING I/O tiles whose feedback pips the database lacks (#62 -- the
-# OFB shape above was accepted but never worked in hardware), and -o preplaced
-# / -o prerouted / -o holdbufs replaying a reference build's placement and
-# routing (#30).
-NEXTPNR_HASH=3e5c2cdd256745fb5adb93f3ffe8c3795b1e7abf
+# A DSP48E1 has no interconnect path to its INMODE0..4, ALUMODE2/3 and OPMODE6
+# pins, and the engine did not tie them in the tile.  The ZIS_*_INVERTED bits
+# then flipped them, and an inferred multiply ignored its A operand (#66,
+# issue #39).  The same merge fixes the inversion lookup for const pins and
+# the ZAREG_2_ACASCREG_1 and ZBREG_2_BCASCREG_1 bits.  A RAM32M or RAM64M read
+# INITA..INITD, not INIT_A..INIT_D, so every LUT started as zero.  The merge
+# that fixes this also makes a negedge SRL16E or SRLC32E invert the half-slice
+# clock (#70).
+#
+# The other merges since 3e5c2cdd: an ODDR on a pad's T input programs the
+# tristate register, and an ODDR without INIT starts at 0 (#72); no
+# OBUF_HP_BANK_GLUE where an OLOGIC cell drives the pad (#78, see the
+# PRJXRAY_HASH note below); RAMB36E1 pairs in a cascade are placed,
+# addressed and configured as a pair (#67); RAMB INIT_A/B and SRVAL_A/B reach
+# the bitstream, and a 72-bit SDP write widens WRITE_WIDTH_A (#69); RAMB
+# data-in setup and hold follow the WRITE_MODE of each port, and hold-fix
+# keeps the fmax in --report (#65); MMCME2 and PLLE2 counters, loop filter and
+# power registers match Vivado, and a PHASE outside -360..360 is an error
+# (#68, 6f2d5334); TMDS_33 and LVDS_25 pairs, LVCMOS33 and LVTTL drive, and
+# the IDDR Q3/Q4 initial values match Vivado (#71).
+#
+# Its history still carries everything the earlier pins were taken for: the
+# bel-bucket naming change (93b4a527), which makes a primitive whose prjxray
+# bel type repeats its own name (RAMB18E1_RAMB18E1) bucket as the primitive;
+# the GTP common segment and ISERDESE2-OFB fixes (5a0b7e41), without which
+# GTP designs fail in the frame tools; the BSCANE2, IDDR, ISERDESE2-OFB and
+# -o preplaced / prerouted / holdbufs fixes of c68c1358; and the diagnostics
+# and range checks of 3e5c2cdd (#53, #54, #55, #57).
+NEXTPNR_HASH=26f5e17a5b956cd742a739f23d049e229114fdb8
 # Pin the recent source previously fetched from master. Tag 0.9.2 predates
 # the HP-bank glue and tile-alias fixes needed by the current database.
 PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
