@@ -30,13 +30,29 @@ YOSYS_HASH=v0.69
 # replaces nextpnr-xilinx, which is archived -- 0.9.8 was that line's last
 # release and the toolchain now builds this instead.
 #
-# 3e5c2cdd is main as of four port merges on top of c68c1358: an MMCM's
-# CLKFBOUT_MULT_F is range-checked instead of crashing the engine on a bad
-# value (#53), an IDELAYCTRL with no I/ODELAYs is a warning rather than an
-# error (#54), a badly constrained diff pair names the pin at fault and each
-# site is classified by its own tile type (#55), and a BEL/WIRE/PIP attribute
-# naming a tile the database does not know is a named error instead of an
-# abort (#57).
+# 4e89c503 is main as of 27 merges on top of 3e5c2cdd.  By area: DSP48E1 --
+# SEL_PATTERN_C in the FASM (#95) and both SIMD features for FOUR12 (#105), the
+# Z registers and default MASK as Vivado writes them (#101), INMODE, ALUMODE2/3
+# and OPMODE6 tied in the tile (#66).  RAMB36E1 -- cascaded pairs placed,
+# addressed and configured (#67), INIT_A/B/SRVAL_A/B and a widened
+# WRITE_WIDTH_A for a 72-bit SDP write (#69), a width-9 port's parity bit on
+# DIPxDIP1 as well (#63), the data-in setup/hold by WRITE_MODE (#65).  OLOGIC
+# and pads -- the tristate register for an ODDR-driven pad T input and a
+# missing ODDR INIT defaulting to 0 (#72), an OSERDESE2 with T1 tied low
+# driving its pad (#77), no OBUF_HP_BANK_GLUE where an OLOGIC cell drives the
+# pad (#78), the RIOB18 drive rows per LVCMOS strength, IOB_Y0 inputs and used
+# partners (#106), and the TMDS_33/LVDS_25 HR-bank pairs, LVCMOS33/LVTTL drive
+# and IDDR Q3/Q4 initial values of #71.  Clocking -- preplacing clock cells
+# after their LOCs along their own routing (#103), keeping the CASCO<-CASCIN
+# pips of CLK_HROW_TOP (#104), never routing through an unbound BUFGCTRL (#81),
+# warning when a clock stays at the default and deriving through IBUFDS_GTE2
+# (#98).  Also the MMCME2/PLLE2 counters, loop filter and power registers
+# (#68), the initial contents of RAM32M/RAM64M and the clock edge of
+# falling-edge shift registers (#70), the HP input tile's per-half .IN (#102),
+# virtex7 timing calibrated from the VC707 Vivado oracle (#73), the atomic FASM
+# write (#100), the diagnostics (a GT site constraint contradicting its pads
+# #99, IBUFDS_GTE2 is not IN_USE #97, the xc7z035/xc7s75 aliases and 1IL/1Q
+# #96), the vc707-ocaml stretch example (#35) and a bounded Arch CI (#82).
 #
 # Its history still carries everything the earlier pins were taken for.  The
 # bel-bucket naming change (93b4a527): a primitive whose prjxray bel type
@@ -55,7 +71,7 @@ YOSYS_HASH=v0.69
 # OFB shape above was accepted but never worked in hardware), and -o preplaced
 # / -o prerouted / -o holdbufs replaying a reference build's placement and
 # routing (#30).
-NEXTPNR_HASH=3e5c2cdd256745fb5adb93f3ffe8c3795b1e7abf
+NEXTPNR_HASH=4e89c503766a620fd06eb930a6bfca90dab79b02
 # Pin the recent source previously fetched from master. Tag 0.9.2 predates
 # the HP-bank glue and tile-alias fixes needed by the current database.
 PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
