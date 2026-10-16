@@ -103,7 +103,12 @@ PRJXRAY_DB_HASH=b12466df16ecb6fe194fe436ec020ac08d32d61e
 # pins nixpkgs' bazel_8, 8.5.0).  fpga-assembler's MODULE.bazel pins every direct
 # dependency to an exact version and the Bazel Central Registry keeps published
 # versions immutable, so unlike the flake this does not need a registry snapshot.
-FPGA_ASSEMBLER_HASH=cf0e3f08455d502fc6392889c07f482ab8dd2d62
+# e3947384 is lromor/fpga-assembler's merge of #47 ("Reproduce the reference
+# implementation's output"), the upstream commit the hansfbaier fork's cf0e3f08
+# was pinned for; the review only moved the injected configuration out of
+# assembler.cc into injected-features.cc, and the flake.lock and MODULE.bazel
+# are unchanged, so BAZEL_VERSION still matches.
+FPGA_ASSEMBLER_HASH=e39473843769526e940be2ec747b273d297786a4
 BAZEL_VERSION=8.5.0
 
 # Portable "number of cpus" helper (macOS has no nproc by default).
@@ -360,7 +365,7 @@ git_clone_update() (
 	case "$repo" in
 		yosys) repo_url=https://github.com/YosysHQ/yosys.git ;;
 		nextpnr|prjxray|prjxray-db) repo_url="https://github.com/openXC7/$repo.git" ;;
-		fpga-assembler) repo_url=https://github.com/hansfbaier/fpga-assembler.git ;;
+		fpga-assembler) repo_url=https://github.com/lromor/fpga-assembler.git ;;
 		*) echo "Error: unknown repo $repo" >&2; return 1 ;;
 	esac
 	if [[ ! -d "$repo" ]]; then
