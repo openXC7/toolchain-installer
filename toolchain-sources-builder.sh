@@ -72,9 +72,22 @@ YOSYS_HASH=v0.69
 # / -o prerouted / -o holdbufs replaying a reference build's placement and
 # routing (#30).
 NEXTPNR_HASH=4e89c503766a620fd06eb930a6bfca90dab79b02
-# Pin the recent source previously fetched from master. Tag 0.9.2 predates
-# the HP-bank glue and tile-alias fixes needed by the current database.
-PRJXRAY_HASH=ed3331c6200f421164101388759fc2860b0f5634
+# The frame tools, kept equal to the engine's own PRJXRAY_REV.  Tag 0.9.2
+# predates the HP-bank glue and tile-alias fixes the current database needs.
+# Sixteen merges have landed since the previous pin: xc7frames2bit refuses
+# frame addresses the part does not have (#27) and exits 1 when the bitstream
+# cannot be written (#28); fasm2frames emits no OBUF_HP_BANK_GLUE on a half
+# whose OLOGIC holds a cell (#30); the SEL_PATTERN fuzzer (#31);
+# 041a-clk-hrow-casc-copy copies every CLK_HROW row a family lacks and checks
+# that no CLK_HROW bit is left unknown (#32); 039-hclk-config solves HCLK_IOI
+# from its own specimens (#22), 039a forces the MMCM onto one CMT column (#23)
+# and 039b/039c the CLK_PERF0..3 muxes and the PHSR_PERFCLK pip behind each
+# (#29); the tilegrid derivation settles the xc7s100 model (#17), the reference
+# ties by rule rather than argument order (#18, #19) and the top-SING start
+# offsets of IOB33/IOI3 and IOB18 (#20, #21); checkdb keeps bit occupancy in a
+# bitmap (#24) and accepts declared aliases in its strict duplicate detection
+# (#25); and a Database's Grid is built once, not once per call (#26).
+PRJXRAY_HASH=54fea88cc61b58b76a83d0be7b1194a5ec1d7d2d
 # The database the engine is configured against and installs.  Keep it equal to
 # the engine's own PRJXRAY_DB_REV so the chip databases and the frame tools
 # agree; the engine still has to configure against a checkout of it.
