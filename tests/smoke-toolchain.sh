@@ -2,6 +2,79 @@
 # Run after sourcing the installed export.sh. No board is programmed.
 set -eo pipefail
 
+# Source the default (or $INSTALL_PREFIX) installation if the environment is
+# not set up yet.  Sourcing the README's export.sh step is easy to skip, and
+# the failure without it names a file under an empty NEXTPNR_XILINX_DIR.
+install_prefix=${INSTALL_PREFIX:-/opt/openxc7}
+export_sh=$install_prefix/export.sh
+environment_is_unset=false
+if [[ -z ${NEXTPNR_XILINX_DIR:-} && -z ${PRJXRAY_DB_DIR:-} ]]; then
+    environment_is_unset=true
+fi
+default_export_is_present=false
+if [[ -f $export_sh ]]; then
+    default_export_is_present=true
+fi
+if [[ $environment_is_unset == true && $default_export_is_present == true ]]; then
+    # shellcheck disable=SC1090
+    source "$export_sh"
+fi
+
+# A prefix installed before the openXC7/nextpnr engine is indistinguishable
+# from a missing environment until the tools are checked by name.  Fail here
+# with the installer version rather than on the first file the script opens.
+nextpnr_dir_is_set=false
+if [[ -n ${NEXTPNR_XILINX_DIR:-} ]]; then
+    nextpnr_dir_is_set=true
+fi
+if [[ $nextpnr_dir_is_set == false ]]; then
+    printf '%s\n' \
+        "Error: NEXTPNR_XILINX_DIR is not set." \
+        "Source the installed export.sh first, e.g. /opt/openxc7/export.sh," \
+        "or set INSTALL_PREFIX to the prefix it was installed in. If you did" \
+        "source it, the prefix was installed before toolchain-installer 1.0.0;" \
+        "rerun the current toolchain-sources-builder.sh." >&2
+    exit 1
+fi
+
+db_dir_is_set=false
+if [[ -n ${PRJXRAY_DB_DIR:-} ]]; then
+    db_dir_is_set=true
+fi
+if [[ $db_dir_is_set == false ]]; then
+    printf '%s\n' \
+        "Error: PRJXRAY_DB_DIR is not set." \
+        "Source the installed export.sh first, e.g. /opt/openxc7/export.sh." >&2
+    exit 1
+fi
+
+xilinx_gen=$NEXTPNR_XILINX_DIR/share/nextpnr/himbaechel/uarch/xilinx/gen/xilinx_gen.py
+generator_is_present=false
+if [[ -f $xilinx_gen ]]; then
+    generator_is_present=true
+fi
+if [[ $generator_is_present == false ]]; then
+    printf '%s\n' \
+        "Error: $xilinx_gen is missing." \
+        "The prefix predates the openXC7/nextpnr engine (nextpnr-xilinx" \
+        "0.9.x); rerun the current toolchain-sources-builder.sh, or use the" \
+        "nix toolchain." >&2
+    exit 1
+fi
+
+fpga_as_is_present=false
+if command -v fpga-as >/dev/null 2>&1; then
+    fpga_as_is_present=true
+fi
+if [[ $fpga_as_is_present == false ]]; then
+    printf '%s\n' \
+        "Error: fpga-as is not on PATH." \
+        "toolchain-installer release 1.0.0 and older predate fpga-as;" \
+        "install from a current checkout of toolchain-installer (main), or" \
+        "use the nix toolchain." >&2
+    exit 1
+fi
+
 workdir=$(mktemp -d)
 cleanup() {
     if [[ $? == 0 ]]; then

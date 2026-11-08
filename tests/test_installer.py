@@ -1,12 +1,14 @@
 """Offline regression checks; run with python3 -m unittest discover -s tests -v."""
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "toolchain-sources-builder.sh"
+SMOKE = Path(__file__).resolve().parents[1] / "tests" / "smoke-toolchain.sh"
 BASH = os.environ.get("BASH_BIN", "bash")
 
 
@@ -26,6 +28,54 @@ class InstallerTests(unittest.TestCase):
 
     def assert_ok(self, result):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def smoke(self, env):
+        # Resolve the interpreter first: one test empties PATH on purpose.
+        return subprocess.run(
+            [shutil.which(BASH) or BASH, str(SMOKE)],
+            cwd=self.root, env=env,
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+
+    def smoke_environment(self):
+        env = {key: value for key, value in os.environ.items()
+               if key not in ('NEXTPNR_XILINX_DIR', 'PRJXRAY_DB_DIR')}
+        env['INSTALL_PREFIX'] = str(self.root / 'absent')
+        return env
+
+    def test_smoke_test_explains_missing_environment(self):
+        result = self.smoke(self.smoke_environment())
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('NEXTPNR_XILINX_DIR is not set', result.stderr)
+        self.assertIn('export.sh', result.stderr)
+
+    def test_smoke_test_sources_the_installed_export_and_names_an_old_prefix(self):
+        prefix = self.root / 'old-prefix'
+        prefix.mkdir()
+        (prefix / 'export.sh').write_text(
+            f'export NEXTPNR_XILINX_DIR="{prefix}"\n'
+            f'export PRJXRAY_DB_DIR="{prefix}/db"\n')
+        env = self.smoke_environment()
+        env['INSTALL_PREFIX'] = str(prefix)
+        result = self.smoke(env)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('xilinx_gen.py is missing', result.stderr)
+        self.assertIn('nextpnr-xilinx', result.stderr)
+
+    def test_smoke_test_explains_a_prefix_without_fpga_as(self):
+        prefix = self.root / 'prefix'
+        generator = prefix / 'share/nextpnr/himbaechel/uarch/xilinx/gen/xilinx_gen.py'
+        generator.parent.mkdir(parents=True)
+        generator.touch()
+        env = self.smoke_environment()
+        env['NEXTPNR_XILINX_DIR'] = str(prefix)
+        env['PRJXRAY_DB_DIR'] = str(self.root / 'db')
+        # Make sure command -v cannot find a host installation of fpga-as.
+        env['PATH'] = str(self.root / 'empty-path')
+        result = self.smoke(env)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('fpga-as is not on PATH', result.stderr)
+        self.assertIn('1.0.0', result.stderr)
 
     def test_bad_arguments_do_not_install(self):
         for code in ['main typo', 'INSTALL_PREFIX=relative; main', 'JOBS=0; main']:

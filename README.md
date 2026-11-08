@@ -139,4 +139,10 @@ requires running the builder and generating a bitstream with the installed tools
 After sourcing `export.sh`, run `bash tests/smoke-toolchain.sh` to synthesize,
 place and route an Arty A7-35T blinky design and generate its bitstream. This
 also exercises chip database generation and FASM's fast parser; it does not
-program hardware.
+program hardware. If the environment is not set, the script sources
+`$INSTALL_PREFIX/export.sh` itself (`/opt/openxc7` by default).
+
+An installation made by an older version of this script must be rebuilt before
+testing: the archived nextpnr-xilinx 0.9.x prefix has neither `xilinx_gen.py`
+nor `fpga-as`, which the current openXC7 Makefiles call. The smoke test names
+that case instead of failing on the missing file.
