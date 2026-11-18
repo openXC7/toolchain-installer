@@ -382,14 +382,25 @@ git_clone_update() (
 	git submodule update --init --recursive --force
 )
 
-# prjxray's setup.py declares packages=['prjxray'], omitting the sibling
-# `utils` package that its fasm2frames entry point needs - modern pip's
-# editable installs expose only declared packages, so the installed
-# `fasm2frames` fails with "ModuleNotFoundError: No module named 'utils'".
+# prjxray's setup.py used to declare only the prjxray package, while the
+# fasm2frames entry point imported utils.fasm2frames. A current setuptools
+# install then fails at runtime with "ModuleNotFoundError: No module named
+# 'utils'". Adding utils to packages= fixes that revision.
+#
+# openXC7/prjxray#36 stopped using that entry point. Its first form
+# publishes utils/fasm2frames.py as the top-level module fasm2frames
+# (fasm2frames:main). The current form moves the code into
+# prjxray/fasm2frames.py (prjxray.fasm2frames:main). Neither entry point
+# needs a utils package declaration. Leave a setup.py alone unless its
+# console script is still utils.fasm2frames:main.
+#
 # Idempotent; run from inside the prjxray repo, before build_prjxray()
 # installs it.
 patch_prjxray_setup() {
 	local setup_py="setup.py"
+	if ! grep -q "fasm2frames=utils.fasm2frames:main" "$setup_py"; then
+		return 0
+	fi
 	if ! grep -q "packages=\['prjxray', 'utils'\]" "$setup_py"; then
 		sed -i.bak "s/packages=\['prjxray'\]/packages=['prjxray', 'utils']/" "$setup_py"
 		rm -f "$setup_py.bak"

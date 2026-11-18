@@ -362,6 +362,78 @@ class InstallerTests(unittest.TestCase):
         ''')
         self.assert_ok(result)
 
+    def test_prjxray_setup_patch_adds_utils_for_the_utils_entry_point(self):
+        """The entry point utils.fasm2frames needs the utils package declared."""
+        result = self.shell(r'''
+            cat > setup.py << 'EOF'
+packages=['prjxray'],
+entry_points={
+    'console_scripts': ['fasm2frames=utils.fasm2frames:main'],
+}
+EOF
+            patch_prjxray_setup
+            grep -Fx "packages=['prjxray', 'utils']," setup.py
+            grep -F "fasm2frames=utils.fasm2frames:main" setup.py
+            cp setup.py once
+            patch_prjxray_setup
+            cmp setup.py once
+        ''')
+        self.assert_ok(result)
+
+    def test_prjxray_setup_patch_leaves_the_packaged_entry_point_alone(self):
+        """prjxray.fasm2frames:main is the current #36 layout; do not edit it."""
+        result = self.shell(r'''
+            cat > setup.py << 'EOF'
+packages=['prjxray'],
+entry_points={
+    'console_scripts': ['fasm2frames=prjxray.fasm2frames:main'],
+},
+EOF
+            cp setup.py before
+            patch_prjxray_setup
+            cmp setup.py before
+        ''')
+        self.assert_ok(result)
+
+    def test_prjxray_setup_patch_leaves_the_module_entry_point_alone(self):
+        """py_modules plus fasm2frames:main is the first #36 layout; do not edit it."""
+        result = self.shell(r'''
+            cat > setup.py << 'EOF'
+packages=['prjxray'],
+package_dir={'prjxray': 'prjxray', '': 'utils'},
+py_modules=['fasm2frames'],
+entry_points={
+    'console_scripts': ['fasm2frames=fasm2frames:main'],
+},
+EOF
+            cp setup.py before
+            patch_prjxray_setup
+            cmp setup.py before
+        ''')
+        self.assert_ok(result)
+
+    def test_prjxray_setup_patch_still_adds_utils_when_only_deps_moved(self):
+        """Moving pyjson5 to an extra does not install fasm2frames (#37)."""
+        result = self.shell(r'''
+            cat > setup.py << 'EOF'
+packages=['prjxray'],
+install_requires=[
+    'simplejson',
+],
+extras_require={
+    'fuzzers': ['progressbar2', 'pyjson5'],
+},
+entry_points={
+    'console_scripts': ['fasm2frames=utils.fasm2frames:main'],
+}
+EOF
+            patch_prjxray_setup
+            grep -Fx "packages=['prjxray', 'utils']," setup.py
+            grep -F "fasm2frames=utils.fasm2frames:main" setup.py
+            ! grep -F "py_modules" setup.py
+        ''')
+        self.assert_ok(result)
+
 
     def test_bazel_download_is_verified_and_idempotent(self):
         """The pinned binary is checked against the published digest, once."""
