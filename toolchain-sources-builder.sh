@@ -24,13 +24,32 @@ BREW_DEPENDENCIES=(cmake git python openjdk pypy3 boost boost-python3 eigen
 
 # Tools commit hash.
 # Yosys
-YOSYS_HASH=v0.69
+#
+# v0.71 is the current release (2026-11-12).  Since v0.69: the HCUB-based mcm
+# pass and the "optbarriers", "shuffle", -readable/-small and read_slang
+# -target/-family additions, plus prefix-deduplicated strings; v0.70 removed
+# read_xaiger2, which no design or script here uses.
+YOSYS_HASH=v0.71
 
 # The engine: openXC7/nextpnr, the himbaechel xilinx micro-architecture.  It
 # replaces nextpnr-xilinx, which is archived -- 0.9.8 was that line's last
 # release and the toolchain now builds this instead.
 #
-# 4e89c503 is main as of 27 merges on top of 3e5c2cdd.  By area: DSP48E1 --
+# 42d06c5f is main's merge of #212 (2026-11-19).  Since 4e89c503: per-speed-
+# grade timing tables (#179) and the PAD row counting user I/O only (#212); the
+# hold-fix shared-wire group walked as router2 does (#209, #143), and the
+# sinkless net no longer sets the worst slack (#206); the placer's timeout in
+# 64 bits (#205); differential-pair N taken from the package (#194) and
+# IBUFDS_DIFF_OUT packed as a pair of input buffers (#204); a BEL attribute in
+# both forms, including for -o preplaced IOBs (#192); the inverted clock timed
+# on the falling edge (#174) and the clock-net inverter folded into a slice FF
+# or SRL clock (#177); off-slice SRL Q31 folding and SRLC16E clock handling
+# (#165-#171); part resource limits checked after cell insertion (#180); a
+# create_clock period that must be positive (#210); and regression guards for
+# each (#186, #176, #207).
+#
+# The previous pin, 4e89c503, was main as of 27 merges on top of 3e5c2cdd.  By
+# area: DSP48E1 --
 # SEL_PATTERN_C in the FASM (#95) and both SIMD features for FOUR12 (#105), the
 # Z registers and default MASK as Vivado writes them (#101), INMODE, ALUMODE2/3
 # and OPMODE6 tied in the tile (#66).  RAMB36E1 -- cascaded pairs placed,
@@ -71,10 +90,15 @@ YOSYS_HASH=v0.69
 # OFB shape above was accepted but never worked in hardware), and -o preplaced
 # / -o prerouted / -o holdbufs replaying a reference build's placement and
 # routing (#30).
-NEXTPNR_HASH=4e89c503766a620fd06eb930a6bfca90dab79b02
-# The frame tools, kept equal to the engine's own PRJXRAY_REV.  Tag 0.9.2
-# predates the HP-bank glue and tile-alias fixes the current database needs.
-# Sixteen merges have landed since the previous pin: xc7frames2bit refuses
+NEXTPNR_HASH=42d06c5ff00aa04fd06f414b8e0e1ef3673c3a33
+# The frame tools, at the openXC7/prjxray tip.  The engine's own CI still names
+# 54fea88c (PRJXRAY_REV); #34-#56 since then move fasm2frames and bit2fasm into
+# the prjxray package with console scripts, make pyjson5 optional, validate
+# bitread/segmatch/frames input, add sanitizer and CI coverage, and carry the
+# CMake/YAML dependency fixes.  The database format they read is unchanged.
+#
+# Tag 0.9.2 predates the HP-bank glue and tile-alias fixes the current database
+# needs.  Sixteen merges landed before 54fea88c: xc7frames2bit refuses
 # frame addresses the part does not have (#27) and exits 1 when the bitstream
 # cannot be written (#28); fasm2frames emits no OBUF_HP_BANK_GLUE on a half
 # whose OLOGIC holds a cell (#30); the SEL_PATTERN fuzzer (#31);
@@ -87,11 +111,15 @@ NEXTPNR_HASH=4e89c503766a620fd06eb930a6bfca90dab79b02
 # offsets of IOB33/IOI3 and IOB18 (#20, #21); checkdb keeps bit occupancy in a
 # bitmap (#24) and accepts declared aliases in its strict duplicate detection
 # (#25); and a Database's Grid is built once, not once per call (#26).
-PRJXRAY_HASH=54fea88cc61b58b76a83d0be7b1194a5ec1d7d2d
-# The database the engine is configured against and installs.  Keep it equal to
-# the engine's own PRJXRAY_DB_REV so the chip databases and the frame tools
-# agree; the engine still has to configure against a checkout of it.
-PRJXRAY_DB_HASH=b12466df16ecb6fe194fe436ec020ac08d32d61e
+PRJXRAY_HASH=1cd6ae3e6afff798201259e17aa605afe97b86d6
+# The database the engine is configured against and installs, at the
+# openXC7/prjxray-db tip.  The engine's CI still names b12466df
+# (PRJXRAY_DB_REV); #37-#44 since then add ICAP.IN_USE in cfg_center_mid for
+# every family, drop the zynq7 MMCM CLKFBIN bit 28_1015, select IBUFDS_GTE2
+# ODIV2 into MGTCLKOUT, restore the xc7z045 HR-bank pins, give the 30 parts of
+# parts.yaml that had no directory one, and give the xc7s25csga225 parts real
+# part.yaml/part.json files.  The engine still configures against a checkout.
+PRJXRAY_DB_HASH=0c3504f26f5cf77b6a7605c7bc83ebe1ac67b26f
 
 # The engine's bitstream assembler, which the makefiles now call instead of the
 # fasm2frames + xc7frames2bit pair: same frames, one process, 9x to 120x faster
@@ -99,17 +127,19 @@ PRJXRAY_DB_HASH=b12466df16ecb6fe194fe436ec020ac08d32d61e
 # package, so install_bazel() fetches the pinned upstream binary and verifies it
 # against the checksum published next to the release.
 #
-# BAZEL_VERSION matches what the nix toolchain builds fpga-as with (its flake
-# pins nixpkgs' bazel_8, 8.5.0).  fpga-assembler's MODULE.bazel pins every direct
-# dependency to an exact version and the Bazel Central Registry keeps published
-# versions immutable, so unlike the flake this does not need a registry snapshot.
-# e3947384 is lromor/fpga-assembler's merge of #47 ("Reproduce the reference
-# implementation's output"), the upstream commit the hansfbaier fork's cf0e3f08
-# was pinned for; the review only moved the injected configuration out of
-# assembler.cc into injected-features.cc, and the flake.lock and MODULE.bazel
-# are unchanged, so BAZEL_VERSION still matches.
-FPGA_ASSEMBLER_HASH=e39473843769526e940be2ec747b273d297786a4
-BAZEL_VERSION=8.5.0
+# BAZEL_VERSION matches what upstream's flake builds fpga-as with: bazel_9
+# from its locked nixpkgs, 9.1.1.  fpga-assembler's MODULE.bazel pins every
+# direct dependency to an exact version and the Bazel Central Registry keeps
+# published versions immutable, so unlike the flake this does not need a
+# registry snapshot.
+#
+# 4939337a is lromor/fpga-assembler main: #50-#63 resolve pseudo-PIPs before
+# applying tile bit aliases, write the data length into the .bit header before
+# the data, count long-literal words from the least significant digit, fix the
+# bitstream writer's include-cleaner findings, add the Arty A7-35T hardware
+# tests, and move the build to Bazel 9 through nixpkgs' bazelPackage.
+FPGA_ASSEMBLER_HASH=4939337a337c91e0e236aa94a66cc71ac516ff44
+BAZEL_VERSION=9.1.1
 
 # Portable "number of cpus" helper (macOS has no nproc by default).
 get_nproc() {
@@ -547,10 +577,10 @@ build_prjxray_db() {
 install_bazel() {
 	local platform sha256 url target actual
 	case "$OS/$(uname -m)" in
-		Linux/x86_64) platform=linux-x86_64 sha256=18255229d933b8da10151bdef223a302744296b09af8af1988c93faa1ea3c71f ;;
-		Linux/aarch64) platform=linux-arm64 sha256=0c455abf42814ac53539ddd8147249a11b9e05c7dc83dbd6c8dfac1aec243d85 ;;
-		Darwin/x86_64) platform=darwin-x86_64 sha256=84e1b822b6d076151a9a5b7a962e8230f565a17207196056bfe35303077b8147 ;;
-		Darwin/arm64) platform=darwin-arm64 sha256=a89f446641ab1cce603691cb7030865d1fb014e260ee5710615516e3cacd2414 ;;
+		Linux/x86_64) platform=linux-x86_64 sha256=857bed5d2756b4d998d3caebf2d941d13d434c4eda4b1d6d7dda205736c25a93 ;;
+		Linux/aarch64) platform=linux-arm64 sha256=82d1163884e45a6a7ff764cc01197b1b1ed497000726b84dc4b47c1dfc8a2bb4 ;;
+		Darwin/x86_64) platform=darwin-x86_64 sha256=6fd490084bdccf044d7a6d8360a26f8770fa09f4e624328efea292f493204930 ;;
+		Darwin/arm64) platform=darwin-arm64 sha256=2db883718453f0437a7bcb408e889dbf8539cdc4d61c8ebc3807a1a88d02ff08 ;;
 		*)
 			echo "Error: no pinned Bazel $BAZEL_VERSION for $OS/$(uname -m)." >&2
 			return 1

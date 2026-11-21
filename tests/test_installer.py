@@ -453,10 +453,10 @@ EOF
                 return 1
             }
             # The digest install_bazel() expects for Linux/x86_64.
-            sha256sum() { echo "18255229d933b8da10151bdef223a302744296b09af8af1988c93faa1ea3c71f  file"; }
+            sha256sum() { echo "857bed5d2756b4d998d3caebf2d941d13d434c4eda4b1d6d7dda205736c25a93  file"; }
             install_bazel
             [[ -x "$INSTALL_PREFIX/bin/bazel" ]]
-            [[ $("$INSTALL_PREFIX/bin/bazel" --version) == 'bazel 8.5.0' ]]
+            [[ $("$INSTALL_PREFIX/bin/bazel" --version) == 'bazel 9.1.1' ]]
             [[ $(wc -l < downloads) == 1 ]]
             # A rerun with the same pin must not download again.
             install_bazel
